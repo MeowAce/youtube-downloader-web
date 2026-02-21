@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Downloader Pribadi</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #1f2937;
+            padding: 20px;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 450px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 24px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+            outline: none;
+            background-color: #f9fafb;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus,
+        select:focus {
+            border-color: #ef4444;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+        }
+
+        button {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s ease;
+            font-family: 'Inter', sans-serif;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #dc2626;
+        }
+
+        .message {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .note {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 24px;
+            line-height: 1.5;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            justify-content: left;
+            margin-bottom: 16px;
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            margin-right: 10px;
+            width: 18px;
+            height: 18px;
+            accent-color: #ef4444;
+        }
+
+        .checkbox-container label {
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .status-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .back-btn {
+            background-color: #4b5563;
+            margin-top: 20px;
+        }
+
+        .back-btn:hover {
+            background-color: #374151;
+        }
+
+        .preview-card {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        .preview-card img {
+            width: 120px;
+            height: 68px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: #e5e7eb;
+        }
+
+        .preview-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .preview-title {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .preview-channel {
+            margin: 0 0 6px 0;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .preview-duration {
+            font-size: 11px;
+            background: #e5e7eb;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* CSS KHUSUS PROGRESS BAR */
+        .progress-wrapper {
+            width: 100%;
+            background-color: #e5e7eb;
+            border-radius: 8px;
+            height: 24px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #10b981;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .progress-percent {
+            font-size: 15px;
+            font-weight: bold;
+            color: #10b981;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>🎥 YT Downloader</h2>
+
+        {% if task_id %}
+        <div id="loadingScreen">
+            <div class="status-text" id="statusMessage">Menganalisis Link...</div>
+
+            <div class="progress-wrapper">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+            <div class="progress-percent" id="progressText">0%</div>
+
+            <p class="note">Video sedang diproses di latar belakang. Jangan tutup halaman ini, file Anda akan otomatis
+                terunduh setelah mencapai 100%.</p>
+        </div>
+
+        <div id="resultScreen" style="display: none;">
+            <div class="status-text" id="finalMessage"></div>
+            <a href="/" style="text-decoration: none;">
+                <button class="back-btn">Download Lagi</button>
+            </a>
+        </div>
+
+        <script>
+            const taskId = "{{ task_id }}";
+            const loadingScreen = document.getElementById('loadingScreen');
+            const resultScreen = document.getElementById('resultScreen');
+            const finalMessage = document.getElementById('finalMessage');
+
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const statusMessage = document.getElementById('statusMessage');
+
+            // Kita nge-cek ke server setiap 1 Detik (1000ms) agar pergerakan bar halus
+            const interval = setInterval(() => {
+                fetch('/status/' + taskId)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'processing') {
+                            // Update animasi Bar dan Persentase
+                            let percent = parseFloat(data.progress);
+                            if (!isNaN(percent)) {
+                                progressBar.style.width = percent + "%";
+                                progressText.innerText = percent.toFixed(1) + "%";
+                            }
+
+                            // Ganti pesan jika sudah 100% (saat FFmpeg menggabungkan/convert)
+                            if (data.processing_msg) {
+                                statusMessage.innerText = data.processing_msg;
+                            } else if (percent > 0) {
+                                statusMessage.innerText = "Mengunduh Video...";
+                            }
+                        }
+                        else if (data.status === 'completed') {
+                            clearInterval(interval);
+                            loadingScreen.style.display = 'none';
+                            resultScreen.style.display = 'block';
+                            finalMessage.innerHTML = "✅ Selesai! Mengunduh file ke perangkat Anda...";
+                            finalMessage.style.color = "#10b981";
+                            window.location.href = '/ambil_file/' + taskId;
+                        }
+                        else if (data.status === 'error') {
+                            clearInterval(interval);
+                            loadingScreen.style.display = 'none';
+                            resultScreen.style.display = 'block';
+                            finalMessage.innerHTML = "❌ Terjadi Kesalahan:<br><span style='font-size:12px; font-weight:normal;'>" + data.error + "</span>";
+                            finalMessage.style.color = "#ef4444";
+                        }
+                    });
+            }, 1000);
+        </script>
+
+        {% else %}
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class="message">
+            {% for message in messages %} {{ message }} {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST" id="downloadForm">
+            <input type="text" name="url" id="urlInput" placeholder="Paste link YouTube / Playlist di sini..." required
+                autocomplete="off">
+
+            <div class="preview-card" id="previewCard">
+                <img id="previewImage" src="" alt="Thumbnail">
+                <div class="preview-info">
+                    <h4 class="preview-title" id="previewTitle">Memuat info...</h4>
+                    <p class="preview-channel" id="previewChannel">Harap tunggu sebentar</p>
+                    <span class="preview-duration" id="previewDuration">00:00</span>
+                </div>
+            </div>
+
+            <div class="checkbox-container">
+                <input type="checkbox" id="is_playlist" name="is_playlist">
+                <label for="is_playlist">Download Seluruh Playlist (Jika URL berupa Playlist)</label>
+            </div>
+
+            <select name="format" id="formatSelect" onchange="toggleOptions()" required>
+                <option value="video">🎥 Video Lengkap (MP4)</option>
+                <option value="audio">🎵 Hanya Audio</option>
+            </select>
+
+            <select name="resolution" id="resolutionSelect">
+                <option value="2160">Kualitas: 4K (2160p)</option>
+                <option value="1440">Kualitas: 2K (1440p)</option>
+                <option value="1080" selected>Kualitas: Full HD (1080p)</option>
+                <option value="720">Kualitas: HD (720p)</option>
+                <option value="480">Kualitas: SD (480p)</option>
+            </select>
+
+            <select name="audio_quality" id="audioQualitySelect" style="display: none;">
+                <option value="mp3_192" selected>Standar: MP3 (192kbps)</option>
+                <option value="mp3_320">Tinggi: MP3 (320kbps)</option>
+                <option value="flac">Lossless: FLAC (Kualitas Studio)</option>
+                <option value="wav">Uncompressed: WAV</option>
+            </select>
+
+            <button type="submit">Download Sekarang</button>
+        </form>
+
+        <script>
+            function toggleOptions() {
+                var format = document.getElementById("formatSelect").value;
+                var resSelect = document.getElementById("resolutionSelect");
+                var audioSelect = document.getElementById("audioQualitySelect");
+
+                if (format === "audio") {
+                    resSelect.style.display = "none";
+                    audioSelect.style.display = "block";
+                } else {
+                    resSelect.style.display = "block";
+                    audioSelect.style.display = "none";
+                }
+            }
+
+            let typingTimer;
+            const urlInput = document.getElementById('urlInput');
+            const previewCard = document.getElementById('previewCard');
+
+            urlInput.addEventListener('input', () => {
+                clearTimeout(typingTimer);
+                const url = urlInput.value.trim();
+
+                if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
+                    previewCard.style.display = 'none';
+                    return;
+                }
+
+                typingTimer = setTimeout(() => {
+                    fetchPreviewData(url);
+                }, 1000);
+            });
+
+            function fetchPreviewData(url) {
+                const previewTitle = document.getElementById('previewTitle');
+
+                previewCard.style.display = 'flex';
+                previewTitle.innerHTML = "<i>Memuat info video...</i>";
+                document.getElementById('previewChannel').innerText = "Mohon tunggu sebentar";
+                document.getElementById('previewImage').src = "https://via.placeholder.com/120x68?text=Loading...";
+                document.getElementById('previewDuration').innerText = "--:--";
+
+                fetch('/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById('previewTitle').innerText = data.title;
+                            document.getElementById('previewChannel').innerText = data.uploader;
+                            document.getElementById('previewDuration').innerText = data.duration;
+
+                            if (data.thumbnail) {
+                                document.getElementById('previewImage').src = data.thumbnail;
+                            } else {
+                                document.getElementById('previewImage').src = "https://via.placeholder.com/120x68?text=No+Image";
+                            }
+                        } else {
+                            previewTitle.innerHTML = "<span style='color:#ef4444;'>Gagal memuat info video</span>";
+                            document.getElementById('previewChannel').innerText = "Cek kembali link Anda";
+                        }
+                    })
+                    .catch(err => {
+                        previewTitle.innerHTML = "<span style='color:#ef4444;'>Terjadi kesalahan jaringan</span>";
+                    });
+            }
+        </script>
+        {% endif %}
+    </div>
+
+</body>
+
+</html>
