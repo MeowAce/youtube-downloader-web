@@ -7,6 +7,7 @@
     <title>YT Downloader Pribadi</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* CSS Sama seperti sebelumnya */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
@@ -117,6 +118,7 @@
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
+            text-align: left;
         }
 
         .status-text {
@@ -184,7 +186,6 @@
             color: #374151;
         }
 
-        /* CSS KHUSUS PROGRESS BAR */
         .progress-wrapper {
             width: 100%;
             background-color: #e5e7eb;
@@ -206,6 +207,30 @@
             font-weight: bold;
             color: #10b981;
             margin-bottom: 15px;
+        }
+
+        /* CSS KHUSUS INPUT TRIM */
+        .trim-container {
+            display: none;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .trim-box {
+            flex: 1;
+            text-align: left;
+        }
+
+        .trim-label {
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .trim-input {
+            margin-bottom: 0 !important;
         }
     </style>
 </head>
@@ -245,24 +270,20 @@
             const progressText = document.getElementById('progressText');
             const statusMessage = document.getElementById('statusMessage');
 
-            // Kita nge-cek ke server setiap 1 Detik (1000ms) agar pergerakan bar halus
             const interval = setInterval(() => {
                 fetch('/status/' + taskId)
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'processing') {
-                            // Update animasi Bar dan Persentase
                             let percent = parseFloat(data.progress);
                             if (!isNaN(percent)) {
                                 progressBar.style.width = percent + "%";
                                 progressText.innerText = percent.toFixed(1) + "%";
                             }
-
-                            // Ganti pesan jika sudah 100% (saat FFmpeg menggabungkan/convert)
                             if (data.processing_msg) {
                                 statusMessage.innerText = data.processing_msg;
                             } else if (percent > 0) {
-                                statusMessage.innerText = "Mengunduh Video...";
+                                statusMessage.innerText = "Mengunduh File...";
                             }
                         }
                         else if (data.status === 'completed') {
@@ -308,12 +329,34 @@
 
             <div class="checkbox-container">
                 <input type="checkbox" id="is_playlist" name="is_playlist">
-                <label for="is_playlist">Download Seluruh Playlist (Jika URL berupa Playlist)</label>
+                <label for="is_playlist">Download Seluruh Playlist (Jika URL Playlist)</label>
+            </div>
+
+            <div class="checkbox-container">
+                <input type="checkbox" id="enable_trim" onchange="toggleTrim()">
+                <label for="enable_trim">Potong Durasi Video / Audio</label>
+            </div>
+
+            <div class="trim-container" id="trimOptions">
+                <div class="trim-box">
+                    <label class="trim-label">Mulai (Contoh: 00:30)</label>
+                    <input type="text" name="start_time" class="trim-input" placeholder="Mulai dari...">
+                </div>
+                <div class="trim-box">
+                    <label class="trim-label">Selesai (Contoh: 01:45)</label>
+                    <input type="text" name="end_time" class="trim-input" placeholder="Sampai dengan...">
+                </div>
             </div>
 
             <select name="format" id="formatSelect" onchange="toggleOptions()" required>
-                <option value="video">🎥 Video Lengkap (MP4)</option>
+                <option value="video">🎥 Video Lengkap</option>
                 <option value="audio">🎵 Hanya Audio</option>
+            </select>
+
+            <select name="video_ext" id="videoExtSelect">
+                <option value="mp4" selected>Ekstensi: MP4 (Paling Kompatibel)</option>
+                <option value="mkv">Ekstensi: MKV (Untuk Film/Kualitas Tinggi)</option>
+                <option value="webm">Ekstensi: WebM (Lebih Ringan/Optimal Web)</option>
             </select>
 
             <select name="resolution" id="resolutionSelect">
@@ -327,6 +370,10 @@
             <select name="audio_quality" id="audioQualitySelect" style="display: none;">
                 <option value="mp3_192" selected>Standar: MP3 (192kbps)</option>
                 <option value="mp3_320">Tinggi: MP3 (320kbps)</option>
+                <option value="m4a">Efisien Apple: M4A</option>
+                <option value="aac">Audio Jernih: AAC</option>
+                <option value="opus">Sangat Ringan: Opus</option>
+                <option value="vorbis">Ogg Vorbis: OGG</option>
                 <option value="flac">Lossless: FLAC (Kualitas Studio)</option>
                 <option value="wav">Uncompressed: WAV</option>
             </select>
@@ -335,16 +382,34 @@
         </form>
 
         <script>
+            // FUNGSI TOGGLE UNTUK MENU POTONG
+            function toggleTrim() {
+                var isChecked = document.getElementById("enable_trim").checked;
+                var trimOptions = document.getElementById("trimOptions");
+
+                if (isChecked) {
+                    trimOptions.style.display = "flex";
+                } else {
+                    trimOptions.style.display = "none";
+                    // Kosongkan input saat di-uncheck
+                    document.querySelector('input[name="start_time"]').value = "";
+                    document.querySelector('input[name="end_time"]').value = "";
+                }
+            }
+
             function toggleOptions() {
                 var format = document.getElementById("formatSelect").value;
                 var resSelect = document.getElementById("resolutionSelect");
+                var videoExtSelect = document.getElementById("videoExtSelect");
                 var audioSelect = document.getElementById("audioQualitySelect");
 
                 if (format === "audio") {
                     resSelect.style.display = "none";
+                    videoExtSelect.style.display = "none";
                     audioSelect.style.display = "block";
                 } else {
                     resSelect.style.display = "block";
+                    videoExtSelect.style.display = "block";
                     audioSelect.style.display = "none";
                 }
             }

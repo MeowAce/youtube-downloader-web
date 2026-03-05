@@ -5,7 +5,7 @@ import time
 import threading
 import uuid
 import shutil
-import re # Digunakan untuk membersihkan teks persentase dari karakter aneh
+import re 
 
 app = Flask(__name__)
 app.secret_key = "super_secret_key" 
@@ -31,6 +31,22 @@ def hapus_file_lama():
             except:
                 pass
 
+# --- Fungsi untuk mengubah format waktu (MM:SS atau HH:MM:SS) ke detik ---
+def parse_waktu(waktu_str):
+    if not waktu_str: 
+        return None
+    try:
+        parts = waktu_str.strip().split(':')
+        if len(parts) == 3: # HH:MM:SS
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+        elif len(parts) == 2: # MM:SS
+            return int(parts[0]) * 60 + float(parts[1])
+        elif len(parts) == 1: # SS
+            return float(parts[0])
+    except:
+        return None
+    return None
+
 @app.route('/preview', methods=['POST'])
 def preview():
     data = request.get_json()
@@ -43,7 +59,8 @@ def preview():
         ydl_opts = {
             'skip_download': True,
             'quiet': True,
-            'extract_flat': 'in_playlist'
+            'extract_flat': 'in_playlist',
+            'source_address': '0.0.0.0'
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -82,44 +99,56 @@ def preview():
 
 
 # --- FUNGSI BACKGROUND DENGAN PROGRESS HOOK ---
-def proses_download_background(task_id, url, format_choice, resolution_choice, audio_quality, is_playlist):
+def proses_download_background(task_id, url, format_choice, resolution_choice, audio_quality, is_playlist, video_ext, start_time, end_time):
     try:
         task_folder = os.path.join(DOWNLOAD_FOLDER, task_id)
         os.makedirs(task_folder, exist_ok=True)
 
-        # Fungsi khusus untuk menangkap progres persentase dari yt-dlp
         def progress_hook(d):
             if d['status'] == 'downloading':
-                # Coba ambil persen dari hitungan byte (paling akurat)
                 downloaded = d.get('downloaded_bytes', 0)
                 total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
                 if total > 0:
                     percent = (downloaded / total) * 100
                     tasks[task_id]['progress'] = f"{percent:.1f}"
                 else:
-                    # Alternatif: ambil dari string bawaan yt-dlp dan bersihkan kode warna ANSI
                     percent_str = d.get('_percent_str', '0.0%')
                     clean_percent = re.sub(r'\x1b\[[0-9;]*m', '', percent_str).replace('%', '').strip()
                     tasks[task_id]['progress'] = clean_percent
             elif d['status'] == 'finished':
-                # Saat selesai download tapi sedang proses gabung audio+video (FFmpeg)
                 tasks[task_id]['progress'] = "100" 
-                tasks[task_id]['processing_msg'] = "Menggabungkan File (Harap Tunggu)..."
+                tasks[task_id]['processing_msg'] = "Memproses File (Harap Tunggu)..."
 
         ydl_opts = {
             'outtmpl': os.path.join(task_folder, '%(title)s.%(ext)s'),
             'noplaylist': not is_playlist,
             'ignoreerrors': True,
-            'progress_hooks': [progress_hook], # <-- Memasukkan hook ke sini
+            'progress_hooks': [progress_hook], 
+            'source_address': '0.0.0.0'
         }
+
+        # --- LOGIKA MEMOTONG DURASI VIDEO/AUDIO ---
+        if start_time or end_time:
+            mulai_sec = parse_waktu(start_time) or 0
+            selesai_sec = parse_waktu(end_time) or 999999 # Jika end kosong, set ke angka sangat besar (sampai akhir)
+            
+            def rentang_waktu(info_dict, ydl):
+                return [{'start_time': mulai_sec, 'end_time': selesai_sec}]
+            
+            ydl_opts['download_ranges'] = rentang_waktu
+            ydl_opts['force_keyframes_at_cuts'] = True # Memastikan potongan presisi
 
         if format_choice == 'audio':
             codec = 'mp3'
             quality = '192'
 
             if audio_quality == 'mp3_320': quality = '320'
+            elif audio_quality == 'm4a': codec = 'm4a'
+            elif audio_quality == 'aac': codec = 'aac'
             elif audio_quality == 'flac': codec = 'flac'
             elif audio_quality == 'wav': codec = 'wav'
+            elif audio_quality == 'opus': codec = 'opus'
+            elif audio_quality == 'vorbis': codec = 'vorbis' 
 
             ydl_opts.update({
                 'format': 'bestaudio/best',
@@ -128,14 +157,22 @@ def proses_download_background(task_id, url, format_choice, resolution_choice, a
                     'preferredcodec': codec,
                 }],
             })
-            if codec in ['mp3', 'm4a']:
+            
+            if codec in ['mp3', 'm4a', 'aac', 'opus', 'vorbis']:
                 ydl_opts['postprocessors'][0]['preferredquality'] = quality
 
         else: 
-            format_string = f'bestvideo[height<={resolution_choice}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={resolution_choice}]+bestaudio/best'
+            if video_ext == 'webm':
+                format_string = f'bestvideo[height<={resolution_choice}][ext=webm]+bestaudio[ext=webm]/bestvideo[height<={resolution_choice}]+bestaudio/best'
+            elif video_ext == 'mkv':
+                format_string = f'bestvideo[height<={resolution_choice}]+bestaudio/bestvideo[height<={resolution_choice}]+bestaudio/best'
+            else: 
+                format_string = f'bestvideo[height<={resolution_choice}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={resolution_choice}]+bestaudio/best'
+                video_ext = 'mp4'
+
             ydl_opts.update({
                 'format': format_string,
-                'merge_output_format': 'mp4'
+                'merge_output_format': video_ext
             })
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -170,18 +207,23 @@ def index():
         format_choice = request.form.get('format')
         resolution_choice = request.form.get('resolution')
         audio_quality = request.form.get('audio_quality')
+        video_ext = request.form.get('video_ext', 'mp4') 
         is_playlist = 'is_playlist' in request.form 
+        
+        # Menangkap input waktu
+        start_time = request.form.get('start_time')
+        end_time = request.form.get('end_time')
         
         if not url:
             flash('Harap masukkan URL YouTube!')
             return render_template('index.html')
 
         task_id = str(uuid.uuid4())
-        # Menambahkan variabel progress ke dalam dictionary
         tasks[task_id] = {'status': 'processing', 'filename': '', 'error': '', 'progress': '0', 'processing_msg': 'Memulai Download...'}
 
+        # Masukkan parameter start_time dan end_time ke thread
         thread = threading.Thread(target=proses_download_background, 
-                                  args=(task_id, url, format_choice, resolution_choice, audio_quality, is_playlist))
+                                  args=(task_id, url, format_choice, resolution_choice, audio_quality, is_playlist, video_ext, start_time, end_time))
         thread.start()
 
         return render_template('index.html', task_id=task_id)
