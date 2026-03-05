@@ -123,4 +123,3 @@ Kontribusi sangat diterima! Silakan buat issue atau pull request untuk perbaikan
 ## Pengembang
 
 Dikembangkan oleh Defha Hanief Fachry</content>
-<parameter name="filePath">/home/defhah/projects/python-app/Yt-downloader/README.md
