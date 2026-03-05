@@ -29,7 +29,7 @@ YT Downloader adalah aplikasi web yang memungkinkan Anda mengunduh video YouTube
 
 1. **Clone repository ini:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/MeowAce/youtube-downloader-web.git
    cd Yt-downloader
    ```
 
