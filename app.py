@@ -22,7 +22,7 @@ def hapus_file_lama():
         path_item = os.path.join(DOWNLOAD_FOLDER, nama_item)
         waktu_modifikasi = os.path.getmtime(path_item)
         
-        if waktu_sekarang - waktu_modifikasi > 1800:
+        if waktu_sekarang - waktu_modifikasi > 300: # 300 detik = 5 menit (Batas waktu untuk menghapus file lama secara otomatis)
             try:
                 if os.path.isfile(path_item):
                     os.remove(path_item)
