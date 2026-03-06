@@ -3,28 +3,123 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YT Downloader Pribadi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>YT Downloader - Unduh Video & Audio Tanpa Iklan</title>
+    <meta name="description"
+        content="Aplikasi web pribadi untuk mengunduh video dan audio YouTube dengan mudah, cepat, dan tanpa iklan. Mendukung kualitas 4K, MP3, potong durasi, dan download playlist.">
+    <meta name="keywords"
+        content="youtube downloader, yt to mp4, yt to mp3, download video youtube, youtube downloader gratis, webm, mkv, potong video youtube">
+    <meta name="author" content="YT Downloader Pribadi">
+    <meta name="robots" content="index, follow">
+
+    <meta property="og:title" content="YT Downloader Pribadi">
+    <meta property="og:description" content="Unduh video dan audio YouTube favoritmu tanpa batas, tanpa iklan.">
+    <meta property="og:type" content="website">
+
+    <meta name="theme-color" content="#0a0a0a" id="meta-theme-color">
+
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⬇️</text></svg>">
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
-        /* CSS Sama seperti sebelumnya */
+        /* === VARIABEL TEMA GELAP (DEFAULT) === */
+        :root {
+            --bg-body: #0a0a0a;
+            --bg-card: #171717;
+            --bg-input: #121212;
+            --border-color: #262626;
+            --border-focus: #ef4444;
+            --text-main: #ededed;
+            --text-muted: #a1a1aa;
+            --accent: #ef4444;
+            --accent-hover: #dc2626;
+            --success: #10b981;
+            --error: #ef4444;
+            --btn-back: #27272a;
+            --btn-back-hover: #3f3f46;
+            --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.4);
+            --placeholder-img: #27272a;
+        }
+
+        /* === VARIABEL TEMA TERANG === */
+        [data-theme="light"] {
+            --bg-body: #f3f4f6;
+            --bg-card: #ffffff;
+            --bg-input: #f9fafb;
+            --border-color: #e5e7eb;
+            --border-focus: #ef4444;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --accent: #ef4444;
+            --accent-hover: #dc2626;
+            --success: #10b981;
+            --error: #ef4444;
+            --btn-back: #e5e7eb;
+            --btn-back-hover: #d1d5db;
+            --shadow-card: 0 10px 25px rgba(0, 0, 0, 0.05);
+            --placeholder-img: #e5e7eb;
+        }
+
+        /* === TRANSISI HALUS SAAT GANTI TEMA === */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            background-color: var(--bg-body);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            color: #1f2937;
+            color: var(--text-main);
             padding: 20px;
+            position: relative;
+            /* Untuk posisi tombol tema */
+        }
+
+        /* === TOMBOL TOGGLE THEME === */
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            padding: 0;
+            margin: 0;
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-input);
+            transform: scale(1.05);
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.95);
         }
 
         .container {
-            background: #ffffff;
+            background: var(--bg-card);
             padding: 40px;
             border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-card);
             width: 100%;
             max-width: 450px;
             box-sizing: border-box;
@@ -34,66 +129,121 @@
         h2 {
             margin-top: 0;
             margin-bottom: 24px;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
-        input[type="text"],
+        h2 i {
+            color: var(--accent);
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 16px;
+            top: 15px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px 14px 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            box-sizing: border-box;
+            outline: none;
+            background-color: var(--bg-input);
+            color: var(--text-main);
+        }
+
         select {
             width: 100%;
             padding: 14px 16px;
             margin-bottom: 16px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 14px;
             font-family: 'Inter', sans-serif;
             box-sizing: border-box;
             outline: none;
-            background-color: #f9fafb;
-            transition: all 0.2s;
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 14px;
         }
 
         input[type="text"]:focus,
         select:focus {
-            border-color: #ef4444;
-            background-color: #ffffff;
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
         }
 
-        button {
-            background-color: #ef4444;
+        input::placeholder {
+            color: var(--text-muted);
+        }
+
+        button.btn-primary {
+            background-color: var(--accent);
             color: white;
             border: none;
             padding: 14px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             width: 100%;
-            transition: background-color 0.2s ease;
             font-family: 'Inter', sans-serif;
-            margin-top: 10px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.2s ease, transform 0.1s ease;
         }
 
-        button:hover {
-            background-color: #dc2626;
+        button.btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button.btn-primary:active {
+            transform: scale(0.98);
         }
 
         .message {
-            background-color: #fee2e2;
-            color: #b91c1c;
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--error);
             padding: 12px;
             border-radius: 8px;
             margin-bottom: 20px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .note {
-            font-size: 13px;
-            color: #6b7280;
+            font-size: 12px;
+            color: var(--text-muted);
             margin-top: 24px;
-            line-height: 1.5;
+            line-height: 1.6;
         }
 
         .checkbox-container {
@@ -101,60 +251,71 @@
             align-items: center;
             justify-content: left;
             margin-bottom: 16px;
-            background: #f9fafb;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #d1d5db;
+            background: var(--bg-input);
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
         }
 
         .checkbox-container input[type="checkbox"] {
-            margin-right: 10px;
-            width: 18px;
-            height: 18px;
-            accent-color: #ef4444;
+            margin-right: 12px;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+            cursor: pointer;
         }
 
         .checkbox-container label {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
             text-align: left;
+            color: var(--text-main);
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-container label i {
+            color: var(--text-muted);
         }
 
         .status-text {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            color: #374151;
-            margin-bottom: 10px;
+            color: var(--text-main);
+            margin-bottom: 12px;
         }
 
         .back-btn {
-            background-color: #4b5563;
+            background-color: var(--btn-back);
+            color: var(--text-main);
             margin-top: 20px;
         }
 
         .back-btn:hover {
-            background-color: #374151;
+            background-color: var(--btn-back-hover);
         }
 
         .preview-card {
             display: none;
             align-items: center;
             gap: 12px;
-            background: #f9fafb;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            background: var(--bg-input);
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
             margin-bottom: 16px;
             text-align: left;
         }
 
         .preview-card img {
-            width: 120px;
-            height: 68px;
+            width: 100px;
+            height: 56px;
             border-radius: 6px;
             object-fit: cover;
-            background: #e5e7eb;
+            background: var(--placeholder-img);
         }
 
         .preview-info {
@@ -164,55 +325,56 @@
 
         .preview-title {
             margin: 0 0 4px 0;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: var(--text-main);
         }
 
         .preview-channel {
             margin: 0 0 6px 0;
-            font-size: 12px;
-            color: #6b7280;
+            font-size: 11px;
+            color: var(--text-muted);
         }
 
         .preview-duration {
-            font-size: 11px;
-            background: #e5e7eb;
-            padding: 2px 6px;
+            font-size: 10px;
+            background: var(--btn-back);
+            padding: 3px 6px;
             border-radius: 4px;
             font-weight: 600;
-            color: #374151;
+            color: var(--text-main);
         }
 
         .progress-wrapper {
             width: 100%;
-            background-color: #e5e7eb;
+            background-color: var(--bg-input);
             border-radius: 8px;
-            height: 24px;
+            height: 16px;
             overflow: hidden;
             margin-bottom: 10px;
+            border: 1px solid var(--border-color);
         }
 
         .progress-fill {
             height: 100%;
-            background-color: #10b981;
+            background-color: var(--success);
             width: 0%;
-            transition: width 0.5s ease;
+            transition: width 0.4s ease;
         }
 
         .progress-percent {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
-            color: #10b981;
+            color: var(--success);
             margin-bottom: 15px;
         }
 
-        /* CSS KHUSUS INPUT TRIM */
         .trim-container {
             display: none;
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 16px;
         }
 
@@ -222,41 +384,93 @@
         }
 
         .trim-label {
-            font-size: 12px;
-            color: #6b7280;
+            font-size: 11px;
+            color: var(--text-muted);
             font-weight: 600;
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+        }
+
+        .trim-input-wrapper {
+            position: relative;
+        }
+
+        .trim-input-wrapper i {
+            position: absolute;
+            left: 12px;
+            top: 13px;
+            color: var(--text-muted);
+            font-size: 12px;
         }
 
         .trim-input {
             margin-bottom: 0 !important;
+            padding-left: 32px !important;
+        }
+
+        .fa-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 24px 20px;
+                border-radius: 12px;
+                border: none;
+                box-shadow: none;
+                margin-top: 50px;
+                /* Ruang untuk tombol toggle di atas */
+            }
+
+            body {
+                padding: 0;
+                background-color: var(--bg-card);
+                align-items: flex-start;
+                padding-top: 10px;
+            }
+
+            .theme-toggle {
+                top: 15px;
+                right: 15px;
+                background: var(--bg-input);
+            }
         }
     </style>
 </head>
 
 <body>
 
+    <button id="themeToggle" class="theme-toggle" aria-label="Ganti Tema">
+        <i class="fa-solid fa-moon"></i>
+    </button>
+
     <div class="container">
-        <h2>🎥 YT Downloader</h2>
+        <h2><i class="fa-solid fa-cloud-arrow-down"></i> YT Downloader</h2>
 
         {% if task_id %}
         <div id="loadingScreen">
-            <div class="status-text" id="statusMessage">Menganalisis Link...</div>
+            <div class="status-text" id="statusMessage"><i class="fa-solid fa-spinner"></i> Menganalisis Link...</div>
 
             <div class="progress-wrapper">
                 <div class="progress-fill" id="progressBar"></div>
             </div>
             <div class="progress-percent" id="progressText">0%</div>
 
-            <p class="note">Video sedang diproses di latar belakang. Jangan tutup halaman ini, file Anda akan otomatis
-                terunduh setelah mencapai 100%.</p>
+            <p class="note"><i class="fa-solid fa-info-circle"></i> Video sedang diproses di latar belakang. Jangan
+                tutup halaman ini, file Anda akan otomatis terunduh setelah mencapai 100%.</p>
         </div>
 
         <div id="resultScreen" style="display: none;">
             <div class="status-text" id="finalMessage"></div>
             <a href="/" style="text-decoration: none;">
-                <button class="back-btn">Download Lagi</button>
+                <button class="btn-primary back-btn"><i class="fa-solid fa-rotate-left"></i> Download Video
+                    Lain</button>
             </a>
         </div>
 
@@ -281,25 +495,25 @@
                                 progressText.innerText = percent.toFixed(1) + "%";
                             }
                             if (data.processing_msg) {
-                                statusMessage.innerText = data.processing_msg;
+                                statusMessage.innerHTML = `<i class="fa-solid fa-spinner"></i> ` + data.processing_msg;
                             } else if (percent > 0) {
-                                statusMessage.innerText = "Mengunduh File...";
+                                statusMessage.innerHTML = `<i class="fa-solid fa-download"></i> Mengunduh File...`;
                             }
                         }
                         else if (data.status === 'completed') {
                             clearInterval(interval);
                             loadingScreen.style.display = 'none';
                             resultScreen.style.display = 'block';
-                            finalMessage.innerHTML = "✅ Selesai! Mengunduh file ke perangkat Anda...";
-                            finalMessage.style.color = "#10b981";
+                            finalMessage.innerHTML = "<i class='fa-solid fa-circle-check'></i> Selesai! Mengunduh file...";
+                            finalMessage.style.color = "var(--success)";
                             window.location.href = '/ambil_file/' + taskId;
                         }
                         else if (data.status === 'error') {
                             clearInterval(interval);
                             loadingScreen.style.display = 'none';
                             resultScreen.style.display = 'block';
-                            finalMessage.innerHTML = "❌ Terjadi Kesalahan:<br><span style='font-size:12px; font-weight:normal;'>" + data.error + "</span>";
-                            finalMessage.style.color = "#ef4444";
+                            finalMessage.innerHTML = "<i class='fa-solid fa-circle-xmark'></i> Terjadi Kesalahan:<br><span style='font-size:12px; font-weight:normal; color: var(--text-muted); margin-top: 5px; display: block;'>" + data.error + "</span>";
+                            finalMessage.style.color = "var(--error)";
                         }
                     });
             }, 1000);
@@ -309,14 +523,20 @@
         {% with messages = get_flashed_messages() %}
         {% if messages %}
         <div class="message">
-            {% for message in messages %} {{ message }} {% endfor %}
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <div>
+                {% for message in messages %} {{ message }} {% endfor %}
+            </div>
         </div>
         {% endif %}
         {% endwith %}
 
         <form method="POST" id="downloadForm">
-            <input type="text" name="url" id="urlInput" placeholder="Paste link YouTube / Playlist di sini..." required
-                autocomplete="off">
+            <div class="input-group">
+                <i class="fa-solid fa-link"></i>
+                <input type="text" name="url" id="urlInput" placeholder="Paste link YouTube / Playlist..." required
+                    autocomplete="off">
+            </div>
 
             <div class="preview-card" id="previewCard">
                 <img id="previewImage" src="" alt="Thumbnail">
@@ -329,69 +549,70 @@
 
             <div class="checkbox-container">
                 <input type="checkbox" id="is_playlist" name="is_playlist">
-                <label for="is_playlist">Download Seluruh Playlist (Jika URL Playlist)</label>
+                <label for="is_playlist"><i class="fa-solid fa-list"></i> Download Seluruh Playlist</label>
             </div>
 
             <div class="checkbox-container">
                 <input type="checkbox" id="enable_trim" onchange="toggleTrim()">
-                <label for="enable_trim">Potong Durasi Video / Audio</label>
+                <label for="enable_trim"><i class="fa-solid fa-scissors"></i> Potong Durasi Video / Audio</label>
             </div>
 
             <div class="trim-container" id="trimOptions">
                 <div class="trim-box">
-                    <label class="trim-label">Mulai (Contoh: 00:30)</label>
-                    <input type="text" name="start_time" class="trim-input" placeholder="Mulai dari...">
+                    <label class="trim-label">MULAI (MM:SS)</label>
+                    <div class="trim-input-wrapper">
+                        <i class="fa-regular fa-clock"></i>
+                        <input type="text" name="start_time" class="trim-input" placeholder="00:00">
+                    </div>
                 </div>
                 <div class="trim-box">
-                    <label class="trim-label">Selesai (Contoh: 01:45)</label>
-                    <input type="text" name="end_time" class="trim-input" placeholder="Sampai dengan...">
+                    <label class="trim-label">SELESAI (MM:SS)</label>
+                    <div class="trim-input-wrapper">
+                        <i class="fa-solid fa-stopwatch"></i>
+                        <input type="text" name="end_time" class="trim-input" placeholder="00:00">
+                    </div>
                 </div>
             </div>
 
             <select name="format" id="formatSelect" onchange="toggleOptions()" required>
-                <option value="video">🎥 Video Lengkap</option>
-                <option value="audio">🎵 Hanya Audio</option>
+                <option value="video">🎥 Format: Video Lengkap</option>
+                <option value="audio">🎵 Format: Hanya Audio</option>
             </select>
 
             <select name="video_ext" id="videoExtSelect">
-                <option value="mp4" selected>Ekstensi: MP4 (Paling Kompatibel)</option>
-                <option value="mkv">Ekstensi: MKV (Untuk Film/Kualitas Tinggi)</option>
-                <option value="webm">Ekstensi: WebM (Lebih Ringan/Optimal Web)</option>
+                <option value="mp4" selected>Ekstensi: MP4 (Kompatibel)</option>
+                <option value="mkv">Ekstensi: MKV (Kualitas Tinggi)</option>
+                <option value="webm">Ekstensi: WebM (Lebih Ringan)</option>
             </select>
 
             <select name="resolution" id="resolutionSelect">
-                <option value="2160">Kualitas: 4K (2160p)</option>
-                <option value="1440">Kualitas: 2K (1440p)</option>
-                <option value="1080" selected>Kualitas: Full HD (1080p)</option>
-                <option value="720">Kualitas: HD (720p)</option>
-                <option value="480">Kualitas: SD (480p)</option>
+                <option value="2160">Resolusi: 4K (2160p)</option>
+                <option value="1440">Resolusi: 2K (1440p)</option>
+                <option value="1080" selected>Resolusi: Full HD (1080p)</option>
+                <option value="720">Resolusi: HD (720p)</option>
+                <option value="480">Resolusi: SD (480p)</option>
             </select>
 
             <select name="audio_quality" id="audioQualitySelect" style="display: none;">
-                <option value="mp3_192" selected>Standar: MP3 (192kbps)</option>
-                <option value="mp3_320">Tinggi: MP3 (320kbps)</option>
-                <option value="m4a">Efisien Apple: M4A</option>
-                <option value="aac">Audio Jernih: AAC</option>
-                <option value="opus">Sangat Ringan: Opus</option>
-                <option value="vorbis">Ogg Vorbis: OGG</option>
-                <option value="flac">Lossless: FLAC (Kualitas Studio)</option>
-                <option value="wav">Uncompressed: WAV</option>
+                <option value="mp3_192" selected>Kualitas: MP3 (192kbps)</option>
+                <option value="mp3_320">Kualitas: MP3 (320kbps)</option>
+                <option value="m4a">Format: M4A (Apple)</option>
+                <option value="aac">Format: AAC (Jernih)</option>
+                <option value="opus">Format: Opus (Ringan)</option>
+                <option value="flac">Format: FLAC (Lossless)</option>
             </select>
 
-            <button type="submit">Download Sekarang</button>
+            <button type="submit" class="btn-primary"><i class="fa-solid fa-download"></i> Download Sekarang</button>
         </form>
 
         <script>
-            // FUNGSI TOGGLE UNTUK MENU POTONG
             function toggleTrim() {
                 var isChecked = document.getElementById("enable_trim").checked;
                 var trimOptions = document.getElementById("trimOptions");
-
                 if (isChecked) {
                     trimOptions.style.display = "flex";
                 } else {
                     trimOptions.style.display = "none";
-                    // Kosongkan input saat di-uncheck
                     document.querySelector('input[name="start_time"]').value = "";
                     document.querySelector('input[name="end_time"]').value = "";
                 }
@@ -402,7 +623,6 @@
                 var resSelect = document.getElementById("resolutionSelect");
                 var videoExtSelect = document.getElementById("videoExtSelect");
                 var audioSelect = document.getElementById("audioQualitySelect");
-
                 if (format === "audio") {
                     resSelect.style.display = "none";
                     videoExtSelect.style.display = "none";
@@ -421,24 +641,21 @@
             urlInput.addEventListener('input', () => {
                 clearTimeout(typingTimer);
                 const url = urlInput.value.trim();
-
                 if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
                     previewCard.style.display = 'none';
                     return;
                 }
-
                 typingTimer = setTimeout(() => {
                     fetchPreviewData(url);
-                }, 1000);
+                }, 800);
             });
 
             function fetchPreviewData(url) {
                 const previewTitle = document.getElementById('previewTitle');
-
                 previewCard.style.display = 'flex';
-                previewTitle.innerHTML = "<i>Memuat info video...</i>";
-                document.getElementById('previewChannel').innerText = "Mohon tunggu sebentar";
-                document.getElementById('previewImage').src = "https://via.placeholder.com/120x68?text=Loading...";
+                previewTitle.innerHTML = "<i class='fa-solid fa-spinner' style='color: var(--text-muted);'></i> <span style='color: var(--text-muted);'>Mencari video...</span>";
+                document.getElementById('previewChannel').innerText = "";
+                document.getElementById('previewImage').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='56' viewBox='0 0 100 56'%3E%3Crect width='100' height='56' fill='transparent'/%3E%3C/svg%3E";
                 document.getElementById('previewDuration').innerText = "--:--";
 
                 fetch('/preview', {
@@ -451,26 +668,63 @@
                         if (data.success) {
                             document.getElementById('previewTitle').innerText = data.title;
                             document.getElementById('previewChannel').innerText = data.uploader;
-                            document.getElementById('previewDuration').innerText = data.duration;
-
+                            document.getElementById('previewDuration').innerHTML = "<i class='fa-regular fa-clock'></i> " + data.duration;
                             if (data.thumbnail) {
                                 document.getElementById('previewImage').src = data.thumbnail;
-                            } else {
-                                document.getElementById('previewImage').src = "https://via.placeholder.com/120x68?text=No+Image";
                             }
                         } else {
-                            previewTitle.innerHTML = "<span style='color:#ef4444;'>Gagal memuat info video</span>";
-                            document.getElementById('previewChannel').innerText = "Cek kembali link Anda";
+                            previewTitle.innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> <span style='color: var(--error);'>Gagal memuat info</span>";
+                            document.getElementById('previewChannel').innerText = "Pastikan link sudah benar";
                         }
                     })
                     .catch(err => {
-                        previewTitle.innerHTML = "<span style='color:#ef4444;'>Terjadi kesalahan jaringan</span>";
+                        previewTitle.innerHTML = "<i class='fa-solid fa-wifi'></i> <span style='color: var(--error);'>Kesalahan jaringan</span>";
                     });
             }
         </script>
         {% endif %}
     </div>
 
+    <script>
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const themeIcon = themeToggleBtn.querySelector('i');
+        const htmlElement = document.documentElement;
+        const metaThemeColor = document.getElementById('meta-theme-color');
+
+        // Fungsi untuk mengatur tema
+        function setTheme(theme) {
+            if (theme === 'light') {
+                htmlElement.setAttribute('data-theme', 'light');
+                themeIcon.classList.replace('fa-sun', 'fa-moon'); // Ikon bulan untuk switch ke dark
+                metaThemeColor.setAttribute('content', '#f3f4f6');
+                localStorage.setItem('ytTheme', 'light');
+            } else {
+                htmlElement.removeAttribute('data-theme'); // Hapus atribut, kembali ke root (dark)
+                themeIcon.classList.replace('fa-moon', 'fa-sun'); // Ikon matahari untuk switch ke light
+                metaThemeColor.setAttribute('content', '#0a0a0a');
+                localStorage.setItem('ytTheme', 'dark');
+            }
+        }
+
+        // Cek tema yang tersimpan di Local Storage atau preferensi sistem saat halaman dimuat
+        const savedTheme = localStorage.getItem('ytTheme');
+        const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+
+        if (savedTheme) {
+            setTheme(savedTheme);
+        } else if (prefersLight) {
+            setTheme('light');
+        } else {
+            setTheme('dark'); // Default
+        }
+
+        // Event listener saat tombol diklik
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+        });
+    </script>
 </body>
 
 </html>

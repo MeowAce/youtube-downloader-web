@@ -61,7 +61,7 @@ def preview():
             'quiet': True,
             'extract_flat': 'in_playlist',
             'source_address': '0.0.0.0',
-            'remote_components': 'ejs:github'
+            'remote_components': ['ejs:github']
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -126,7 +126,7 @@ def proses_download_background(task_id, url, format_choice, resolution_choice, a
             'ignoreerrors': True,
             'progress_hooks': [progress_hook], 
             'source_address': '0.0.0.0',
-            'remote_components': 'ejs:github'
+            'remote_components': ['ejs:github']
         }
 
         # --- LOGIKA MEMOTONG DURASI VIDEO/AUDIO ---
