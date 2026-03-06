@@ -125,7 +125,8 @@ def proses_download_background(task_id, url, format_choice, resolution_choice, a
             'noplaylist': not is_playlist,
             'ignoreerrors': True,
             'progress_hooks': [progress_hook], 
-            'source_address': '0.0.0.0'
+            'source_address': '0.0.0.0',
+            'remote_components': 'ejs:github'
         }
 
         # --- LOGIKA MEMOTONG DURASI VIDEO/AUDIO ---
