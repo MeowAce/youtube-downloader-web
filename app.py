@@ -60,7 +60,8 @@ def preview():
             'skip_download': True,
             'quiet': True,
             'extract_flat': 'in_playlist',
-            'source_address': '0.0.0.0'
+            'source_address': '0.0.0.0',
+            'remote_components': 'ejs:github'
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
