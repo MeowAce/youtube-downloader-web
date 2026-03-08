@@ -116,6 +116,58 @@ Yt-downloader/
 └── downloads/            # Folder untuk file unduhan (dibuat otomatis)
 ```
 
+## Troubleshooting
+
+### FFmpeg tidak terinstal
+**Gejala:** Error `'ffmpeg' is not recognized` atau `ffmpeg not found`
+
+**Solusi:**
+- **Ubuntu/Debian:** `sudo apt update && sudo apt install ffmpeg`
+- **macOS:** `brew install ffmpeg`
+- **Windows:** Download installer dari [ffmpeg.org](https://ffmpeg.org/download.html) atau gunakan `choco install ffmpeg`
+
+### Port 5000 sudah terpakai
+**Gejala:** Error `Address already in use` atau `Port 5000 is in use`
+
+**Solusi:**
+1. Ubah port di `app.py` baris terakhir:
+   ```python
+   socketio.run(app, debug=True, host='0.0.0.0', port=8000, allow_unsafe_werkzeug=True)
+   ```
+2. Atau kill proses yang menggunakan port 5000:
+   ```bash
+   # Linux/macOS
+   lsof -ti:5000 | xargs kill -9
+   
+   # Windows
+   netstat -ano | findstr :5000
+   taskkill /PID <PID> /F
+   ```
+
+### Download gagal / Video tidak bisa diunduh
+**Gejala:** Error saat download atau file kosong
+
+**Solusi:**
+- Pastikan video bukan video live atau age-restricted
+- Coba gunakan cookies YouTube di `cookies.txt` (jika diperlukan untuk akun tertentu)
+- Update yt-dlp: `pip install --upgrade yt-dlp`
+- Periksa apakah FFmpeg terinstal dengan benar
+
+### Browser mengalami CORS error
+**Gejala:** Error CORS saat preview atau proxy gambar
+
+**Solusi:**
+- CORS sudah diatur ke `*` di aplikasi, jika masih ada error cek browser console
+- Coba di browser lain atau clear cache browser
+
+### File unduhan tidak ditemukan
+**Gejala:** Klik "Download File" tapi file tidak ada/error 404
+
+**Solusi:**
+- File dihapus otomatis setelah 5 menit jika tidak didownload
+- Unduh file sebelum 5 menit berlalu
+- Cek folder `downloads/` apakah file ada
+
 ## Lisensi
 
 Proyek ini menggunakan lisensi MIT. Lihat file [LICENSE](LICENSE) untuk detail lebih lanjut.
