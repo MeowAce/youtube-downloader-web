@@ -60,6 +60,10 @@ def parse_waktu(waktu_str):
     except: return None
     return None
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_file('static/icon-192.png', mimetype='image/png')
+
 @app.route('/proxy_gambar')
 def proxy_gambar():
     url_gambar = request.args.get('url')
@@ -69,6 +73,17 @@ def proxy_gambar():
         with urllib.request.urlopen(req) as response:
             return Response(response.read(), mimetype=response.info().get_content_type())
     except Exception as e: return str(e), 404
+
+
+@app.route('/sw.js')
+def serve_sw():
+    # Menyajikan Service Worker dari folder static
+    return send_file('static/sw.js', mimetype='application/javascript')
+
+@app.route('/manifest.json')
+def serve_manifest():
+    # Menyajikan Manifest dari folder static
+    return send_file('static/manifest.json', mimetype='application/manifest+json')
 
 @app.route('/preview', methods=['POST'])
 def preview():

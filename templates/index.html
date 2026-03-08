@@ -7,6 +7,12 @@
 
     <title>Media Downloader Pro - Batch & Multi-Format</title>
 
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Media DL">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.1/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -656,6 +662,16 @@
         }
         const savedTheme = localStorage.getItem('ytTheme'); if (savedTheme) setTheme(savedTheme); else setTheme('dark');
         themeToggleBtn.addEventListener('click', () => { setTheme(htmlElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); });
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('PWA Service Worker terdaftar!', reg.scope))
+                    .catch(err => console.log('Gagal mendaftar Service Worker', err));
+            });
+        }
     </script>
 </body>
 
