@@ -22,6 +22,10 @@ YT Downloader adalah aplikasi web yang memungkinkan Anda mengunduh video YouTube
 - Python 3.10+
 - FFmpeg (untuk pemrosesan audio/video)
 - yt-dlp (library untuk mengunduh dari YouTube)
+- Flask
+- flask-socketio
+- python-socketio
+- python-engineio
 
 ## Instalasi
 
@@ -90,19 +94,25 @@ YT Downloader adalah aplikasi web yang memungkinkan Anda mengunduh video YouTube
 - `GET /`: Halaman utama
 - `POST /`: Memulai proses download
 - `POST /preview`: Preview informasi video
-- `GET /status/<task_id>`: Cek status download
 - `GET /ambil_file/<task_id>`: Download file hasil
+- `GET /proxy_gambar`: Proxy gambar dari URL eksternal
+- WebSocket `progress`: Real-time progress tracking
 
 ## Struktur Proyek
 
 ```
 Yt-downloader/
-├── app.py                 # Aplikasi Flask utama
+├── app.py                 # Aplikasi Flask dan socketio utama
 ├── requirements.txt       # Dependencies Python
 ├── Dockerfile            # Konfigurasi Docker
 ├── LICENSE               # Lisensi MIT
+├── cookies.txt           # File cookies untuk autentikasi (opsional)
+├── README.md             # Dokumentasi proyek
 ├── templates/
 │   └── index.html        # Template web interface
+├── static/
+│   ├── manifest.json     # PWA manifest file
+│   └── sw.js             # Service Worker untuk PWA
 └── downloads/            # Folder untuk file unduhan (dibuat otomatis)
 ```
 
