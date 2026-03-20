@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, send_file, flash, jsonify, Response
 from flask_socketio import SocketIO
+from dotenv import load_dotenv
 import yt_dlp
 import os
 import time
@@ -8,7 +9,9 @@ import uuid
 import shutil
 import re 
 import urllib.request
+import subprocess 
 
+load_dotenv()
 app = Flask(__name__)
 app.secret_key = "super_secret_key" 
 socketio = SocketIO(app, cors_allowed_origins="*") 
@@ -74,15 +77,12 @@ def proxy_gambar():
             return Response(response.read(), mimetype=response.info().get_content_type())
     except Exception as e: return str(e), 404
 
-
 @app.route('/sw.js')
 def serve_sw():
-    # Menyajikan Service Worker dari folder static
     return send_file('static/sw.js', mimetype='application/javascript')
 
 @app.route('/manifest.json')
 def serve_manifest():
-    # Menyajikan Manifest dari folder static
     return send_file('static/manifest.json', mimetype='application/manifest+json')
 
 @app.route('/preview', methods=['POST'])
@@ -90,6 +90,15 @@ def preview():
     data = request.get_json()
     url = data.get('url')
     if not url: return jsonify({'success': False, 'error': 'URL kosong'})
+
+    if 'spotify.com' in url:
+        return jsonify({
+            'success': True, 
+            'title': 'Media Spotify', 
+            'thumbnail': 'https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_Green.png', 
+            'uploader': 'Spotify Audio', 
+            'duration': 'Audio Track / Playlist'
+        })
 
     try:
         ydl_opts = {
@@ -131,75 +140,126 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
         task_folder = os.path.join(DOWNLOAD_FOLDER, task_id)
         os.makedirs(task_folder, exist_ok=True)
 
-        def progress_hook(d):
-            if d['status'] == 'downloading':
-                downloaded = d.get('downloaded_bytes', 0)
-                total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
-                if total > 0:
-                    percent = (downloaded / total) * 100
-                    socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': f"{percent:.1f}"})
-                else:
-                    percent_str = d.get('_percent_str', '0.0%')
-                    clean_percent = re.sub(r'\x1b\[[0-9;]*m', '', percent_str).replace('%', '').strip()
-                    socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': clean_percent})
-            elif d['status'] == 'finished':
-                socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '100', 'processing_msg': 'Memproses/Konversi File...'})
+        spotify_urls = [u for u in urls if 'spotify.com' in u]
+        other_urls = [u for u in urls if 'spotify.com' not in u]
 
-        ydl_opts = {
-            'outtmpl': os.path.join(task_folder, '%(title)s.%(ext)s'), 'noplaylist': not is_playlist,
-            'ignoreerrors': True, 'progress_hooks': [progress_hook], 'source_address': '0.0.0.0',
-            'remote_components': ['ejs:github']
-        }
-        
-        if os.path.exists('cookies.txt'):
-            perbaiki_cookies('cookies.txt')
-            ydl_opts['cookiefile'] = 'cookies.txt'
-
-        if start_time or end_time:
-            mulai_sec = parse_waktu(start_time) or 0
-            selesai_sec = parse_waktu(end_time) or 999999 
-            ydl_opts['download_ranges'] = lambda info_dict, ydl: [{'start_time': mulai_sec, 'end_time': selesai_sec}]
-            ydl_opts['force_keyframes_at_cuts'] = True
-
-        if format_choice == 'audio':
-            codec = 'mp3'
-            quality = '192'
-            if audio_quality == 'mp3_320': quality = '320'
-            elif audio_quality in ['m4a', 'aac', 'flac', 'wav', 'opus']: codec = audio_quality
+        # 1. Proses Spotify
+        if spotify_urls:
+            socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '10', 'processing_msg': 'Memproses dari Spotify...'})
             
-            # Jika user minta webm audio, kita ambil format aslinya tanpa konversi codec FFmpeg
-            if audio_quality == 'webm':
-                ydl_opts.update({'format': 'bestaudio[ext=webm]/bestaudio/best'})
+            # Ambil kredensial dari file .env
+            SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+            SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+
+            # Validasi jika kredensial .env kosong
+            if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
+                socketio.emit('error', {'task_id': task_id, 'error': 'API Key Spotify belum dikonfigurasi di file .env!'})
+                return
+
+            if format_choice == 'metadata':
+                # Hanya simpan metadata ke file JSON
+                for i, s_url in enumerate(spotify_urls):
+                    meta_filename = f"{task_folder}/spotify_metadata_{i+1}.json"
+                    cmd = [
+                        'spotdl', 'save', s_url, 
+                        '--save-file', meta_filename,
+                        '--client-id', SPOTIFY_CLIENT_ID,
+                        '--client-secret', SPOTIFY_CLIENT_SECRET
+                    ]
+                    subprocess.run(cmd, check=True)
+                socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '50', 'processing_msg': 'Metadata Spotify berhasil diambil...'})
             else:
-                ydl_opts.update({
-                    'format': 'bestaudio/best', 
-                    'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': codec}]
-                })
-                if codec in ['mp3', 'm4a', 'aac', 'opus']: 
-                    ydl_opts['postprocessors'][0]['preferredquality'] = quality
-        else: 
-            if video_ext == 'webm': format_string = f'bestvideo[height<={resolution_choice}][ext=webm]+bestaudio[ext=webm]/bestvideo[height<={resolution_choice}]+bestaudio/best'
-            elif video_ext == 'mkv': format_string = f'bestvideo[height<={resolution_choice}]+bestaudio/bestvideo[height<={resolution_choice}]+bestaudio/best'
-            else: 
-                format_string = f'bestvideo[height<={resolution_choice}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={resolution_choice}]+bestaudio/best'
+                spotdl_format = 'mp3'
+                if audio_quality in ['m4a', 'flac', 'wav', 'opus']: spotdl_format = audio_quality
+
+                for s_url in spotify_urls:
+                    cmd = [
+                        'spotdl', 'download', s_url,
+                        '--output', f"{task_folder}/{{artist}} - {{title}}.{{ext}}",
+                        '--format', spotdl_format,
+                        '--client-id', SPOTIFY_CLIENT_ID,
+                        '--client-secret', SPOTIFY_CLIENT_SECRET
+                    ]
+                    subprocess.run(cmd, check=True)
+                socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '50', 'processing_msg': 'Mengunduh file Spotify...'})
                 
-            ydl_opts['format'] = format_string
+        # 2. Proses URL Lain (YouTube, IG, TikTok, dll)
+        if other_urls:
+            def progress_hook(d):
+                if d['status'] == 'downloading':
+                    downloaded = d.get('downloaded_bytes', 0)
+                    total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
+                    if total > 0:
+                        percent = (downloaded / total) * 100
+                        socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': f"{percent:.1f}"})
+                    else:
+                        percent_str = d.get('_percent_str', '0.0%')
+                        clean_percent = re.sub(r'\x1b\[[0-9;]*m', '', percent_str).replace('%', '').strip()
+                        socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': clean_percent})
+                elif d['status'] == 'finished':
+                    socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '100', 'processing_msg': 'Memproses/Menyimpan File...'})
+
+            ydl_opts = {
+                'outtmpl': os.path.join(task_folder, '%(title)s.%(ext)s'), 'noplaylist': not is_playlist,
+                'ignoreerrors': True, 'progress_hooks': [progress_hook], 'source_address': '0.0.0.0',
+                'remote_components': ['ejs:github']
+            }
             
-            # Mendukung format baru: avi, mov, flv dll (Akan dikonversi oleh ffmpeg)
-            if video_ext in ['avi', 'mov']:
-                ydl_opts['merge_output_format'] = 'mkv' # Gabung aman dulu
-                ydl_opts.setdefault('postprocessors', []).append({'key': 'FFmpegVideoConvertor', 'preferedformat': video_ext})
-            elif video_ext == 'webm' and 'instagram.com' in urls[0]: 
-                ydl_opts['merge_output_format'] = 'mp4'
-            else: 
-                ydl_opts['merge_output_format'] = video_ext
+            if os.path.exists('cookies.txt'):
+                perbaiki_cookies('cookies.txt')
+                ydl_opts['cookiefile'] = 'cookies.txt'
 
-        # Eksekusi yt-dlp dengan LIST URL (Batch Mode)
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download(urls)
+            # Jika format yang diminta HANYA METADATA
+            if format_choice == 'metadata':
+                ydl_opts.update({
+                    'skip_download': True,      # Jangan unduh video/audio
+                    'writeinfojson': True,      # Simpan file .info.json
+                    'clean_infojson': False     # Biarkan semua info metadata utuh
+                })
+            else:
+                if start_time or end_time:
+                    mulai_sec = parse_waktu(start_time) or 0
+                    selesai_sec = parse_waktu(end_time) or 999999 
+                    ydl_opts['download_ranges'] = lambda info_dict, ydl: [{'start_time': mulai_sec, 'end_time': selesai_sec}]
+                    ydl_opts['force_keyframes_at_cuts'] = True
 
+                if format_choice == 'audio':
+                    codec = 'mp3'
+                    quality = '192'
+                    if audio_quality == 'mp3_320': quality = '320'
+                    elif audio_quality in ['m4a', 'aac', 'flac', 'wav', 'opus']: codec = audio_quality
+                    
+                    if audio_quality == 'webm':
+                        ydl_opts.update({'format': 'bestaudio[ext=webm]/bestaudio/best'})
+                    else:
+                        ydl_opts.update({
+                            'format': 'bestaudio/best', 
+                            'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': codec}]
+                        })
+                        if codec in ['mp3', 'm4a', 'aac', 'opus']: 
+                            ydl_opts['postprocessors'][0]['preferredquality'] = quality
+                else: 
+                    if video_ext == 'webm': format_string = f'bestvideo[height<={resolution_choice}][ext=webm]+bestaudio[ext=webm]/bestvideo[height<={resolution_choice}]+bestaudio/best'
+                    elif video_ext == 'mkv': format_string = f'bestvideo[height<={resolution_choice}]+bestaudio/bestvideo[height<={resolution_choice}]+bestaudio/best'
+                    else: 
+                        format_string = f'bestvideo[height<={resolution_choice}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={resolution_choice}]+bestaudio/best'
+                        
+                    ydl_opts['format'] = format_string
+                    
+                    if video_ext in ['avi', 'mov']:
+                        ydl_opts['merge_output_format'] = 'mkv' 
+                        ydl_opts.setdefault('postprocessors', []).append({'key': 'FFmpegVideoConvertor', 'preferedformat': video_ext})
+                    elif video_ext == 'webm' and 'instagram.com' in other_urls[0]: 
+                        ydl_opts['merge_output_format'] = 'mp4'
+                    else: 
+                        ydl_opts['merge_output_format'] = video_ext
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download(other_urls)
+
+        # Proses Pembungkusan (ZIP) jika lebih dari 1 file
         downloaded_files = os.listdir(task_folder)
-        if len(downloaded_files) == 0: raise Exception("Tidak ada file yang berhasil diunduh.")
+        if len(downloaded_files) == 0: raise Exception("Tidak ada file yang berhasil diproses.")
         elif len(downloaded_files) == 1:
             tasks[task_id] = {'filename': os.path.join(task_folder, downloaded_files[0])}
         else:
@@ -219,7 +279,6 @@ def index():
     hapus_file_lama()
     if request.method == 'POST':
         urls_raw = request.form.get('url', '')
-        # Pisahkan URL berdasarkan baris baru (Enter) atau koma, bersihkan whitespace
         urls = [u.strip() for u in urls_raw.replace(',', '\n').split('\n') if u.strip()]
         
         format_choice = request.form.get('format')

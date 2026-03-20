@@ -137,7 +137,6 @@
             font-size: 14px;
         }
 
-        /* TEXTAREA UNTUK BATCH URL */
         textarea {
             width: 100%;
             padding: 14px 16px 14px 40px;
@@ -491,7 +490,7 @@
             <div class="input-group">
                 <i class="fa-solid fa-link"></i>
                 <textarea name="url" id="urlInput"
-                    placeholder="Paste link di sini...&#10;(Untuk Batch, paste banyak link pisahkan dengan Enter)"
+                    placeholder="Paste link YouTube, IG, TikTok, atau Spotify di sini...&#10;(Untuk Batch, paste banyak link pisahkan dengan Enter)"
                     required></textarea>
             </div>
 
@@ -531,6 +530,7 @@
             <select name="format" id="formatSelect" onchange="toggleOptions()" required>
                 <option value="video">🎥 Format: Video Lengkap</option>
                 <option value="audio">🎵 Format: Hanya Audio</option>
+                <option value="metadata">📄 Format: Hanya Metadata (JSON)</option>
             </select>
 
             <select name="video_ext" id="videoExtSelect">
@@ -577,10 +577,22 @@
                     document.getElementById("resolutionSelect").style.display = "none";
                     document.getElementById("videoExtSelect").style.display = "none";
                     document.getElementById("audioQualitySelect").style.display = "block";
+                    document.getElementById("trimOptions").style.opacity = "1";
+                    document.getElementById("enable_trim").disabled = false;
+                } else if (format === "metadata") {
+                    document.getElementById("resolutionSelect").style.display = "none";
+                    document.getElementById("videoExtSelect").style.display = "none";
+                    document.getElementById("audioQualitySelect").style.display = "none";
+                    
+                    // Nonaktifkan fitur trim jika metadata karena tidak relevan
+                    document.getElementById("enable_trim").checked = false;
+                    document.getElementById("enable_trim").disabled = true;
+                    toggleTrim(); 
                 } else {
                     document.getElementById("resolutionSelect").style.display = "block";
                     document.getElementById("videoExtSelect").style.display = "block";
                     document.getElementById("audioQualitySelect").style.display = "none";
+                    document.getElementById("enable_trim").disabled = false;
                 }
             }
 
@@ -592,41 +604,112 @@
                 clearTimeout(typingTimer);
                 const rawUrl = urlInput.value.trim();
 
-                // Cek apakah ada banyak link (pisahkan berdasarkan Enter atau koma)
                 const urls = rawUrl.split(/\r?\n|,/).map(u => u.trim()).filter(u => u !== '');
 
+                const formatSelect = document.getElementById('formatSelect');
                 const resSelect = document.getElementById('resolutionSelect');
                 const videoExtSelect = document.getElementById('videoExtSelect');
 
-                // Jika Batch Mode Aktif (> 1 link)
                 if (urls.length > 1) {
                     previewCard.style.display = 'flex';
                     document.getElementById('previewTitle').innerHTML = "<i class='fa-solid fa-layer-group'></i> Mode Batch Aktif";
                     document.getElementById('previewChannel').innerText = urls.length + " Link Terdeteksi";
                     document.getElementById('previewDuration').innerHTML = "<i class='fa-solid fa-boxes-packing'></i> Multi-file";
-                    document.getElementById('previewImage').style.display = 'none'; // Sembunyikan gambar saat batch
-                    document.getElementById('enable_trim').disabled = true; // Matikan fitur potong saat batch
+                    document.getElementById('previewImage').style.display = 'none'; 
+                    document.getElementById('enable_trim').disabled = true; 
+                    
+                    // Aktifkan semua opsi format di batch (Video, Audio, Metadata)
+                    Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
                     return;
                 }
 
-                // Jika hanya 1 Link (Kembalikan seperti semula)
                 document.getElementById('previewImage').style.display = 'block';
                 document.getElementById('enable_trim').disabled = false;
 
                 // Logika Auto-Detect Platform untuk 1 link
-                if (urls.length === 1 && (urls[0].includes('instagram.com') || urls[0].includes('tiktok.com'))) {
-                    videoExtSelect.value = 'mp4'; videoExtSelect.disabled = true;
-                    Array.from(resSelect.options).forEach(opt => {
-                        if (parseInt(opt.value) > 1080) opt.style.display = 'none'; else opt.style.display = 'block';
-                    });
-                    if (parseInt(resSelect.value) > 1080) resSelect.value = '1080';
-                } else {
-                    videoExtSelect.disabled = false; Array.from(resSelect.options).forEach(opt => opt.style.display = 'block');
+                if (urls.length === 1) {
+                    if (urls[0].includes('spotify.com')) {
+                        // Jika Spotify, jangan izinkan format Video, tapi boleh Audio atau Metadata
+                        Array.from(formatSelect.options).forEach(opt => {
+                            if(opt.value === 'video') opt.disabled = true;
+                            else opt.disabled = false;
+                        });
+                        if(formatSelect.value === 'video') {
+                            formatSelect.value = 'audio';
+                        }
+                        toggleOptions();
+                    } else {
+                        Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
+                        if (urls[0].includes('instagram.com') || urls[0].includes('tiktok.com')) {
+                            videoExtSelect.value = 'mp4'; videoExtSelect.disabled = true;
+                            Array.from(resSelect.options).forEach(opt => {
+                                if (parseInt(opt.value) > 1080) opt.style.display = 'none'; else opt.style.display = 'block';
+                            });
+                            if (parseInt(resSelect.value) > 1080) resSelect.value = '1080';
+                        } else {
+                            videoExtSelect.disabled = false; Array.from(resSelect.options).forEach(opt => opt.style.display = 'block');
+                        }
+                    }
                 }
 
-                if (urls.length === 0) { previewCard.style.display = 'none'; return; }
+                if (urls.length === 0) { previewCard.style.display = 'none'; Array.from(formatSelect.options).forEach(opt => opt.disabled = false); return; }
 
                 typingTimer = setTimeout(() => { fetchPreviewData(urls[0]); }, 800);
+            });
+
+            urlInput.addEventListener('input', () => {
+                clearTimeout(typingTimer);
+                const rawUrl = urlInput.value.trim();
+
+                const urls = rawUrl.split(/\r?\n|,/).map(u => u.trim()).filter(u => u !== '');
+
+                const formatSelect = document.getElementById('formatSelect');
+                const resSelect = document.getElementById('resolutionSelect');
+                const videoExtSelect = document.getElementById('videoExtSelect');
+
+                if (urls.length > 1) {
+                    previewCard.style.display = 'flex';
+                    document.getElementById('previewTitle').innerHTML = "<i class='fa-solid fa-layer-group'></i> Mode Batch Aktif";
+                    document.getElementById('previewChannel').innerText = urls.length + " Link Terdeteksi";
+                    document.getElementById('previewDuration').innerHTML = "<i class='fa-solid fa-boxes-packing'></i> Multi-file";
+                    document.getElementById('previewImage').style.display = 'none';
+                    document.getElementById('enable_trim').disabled = true;
+                    formatSelect.disabled = false; // Buka pilihan format di batch
+                    return;
+                }
+
+                document.getElementById('previewImage').style.display = 'block';
+                document.getElementById('enable_trim').disabled = false;
+
+                // Logika Auto-Detect Platform untuk 1 link
+                if (urls.length === 1) {
+                    if (urls[0].includes('spotify.com')) {
+                        // Jika Spotify, paksa ke Audio
+                        formatSelect.value = 'audio';
+                        formatSelect.disabled = true;
+                        toggleOptions();
+                    } else {
+                        formatSelect.disabled = false;
+                        if (urls[0].includes('instagram.com') || urls[0].includes('tiktok.com')) {
+                            videoExtSelect.value = 'mp4'; videoExtSelect.disabled = true;
+                            Array.from(resSelect.options).forEach(opt => {
+                                if (parseInt(opt.value) > 1080) opt.style.display = 'none'; else opt.style.display = 'block';
+                            });
+                            if (parseInt(resSelect.value) > 1080) resSelect.value = '1080';
+                        } else {
+                            videoExtSelect.disabled = false; Array.from(resSelect.options).forEach(opt => opt.style.display = 'block');
+                        }
+                    }
+                }
+
+                if (urls.length === 0) { previewCard.style.display = 'none'; formatSelect.disabled = false; return; }
+
+                typingTimer = setTimeout(() => { fetchPreviewData(urls[0]); }, 800);
+            });
+
+            // Mengaktifkan kembali format select sebelum disubmit jika sedang didisable (agar nilainya terkirim)
+            document.getElementById('downloadForm').addEventListener('submit', function () {
+                document.getElementById('formatSelect').disabled = false;
             });
 
             function fetchPreviewData(url) {
