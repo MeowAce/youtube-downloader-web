@@ -427,14 +427,15 @@
         {% if task_id %}
         <div id="loadingScreen">
             <div class="status-text" id="statusMessage"><i class="fa-solid fa-spinner"></i> Memulai Download...</div>
-            <div class="progress-wrapper">
-                <div class="progress-fill" id="progressBar"></div>
+        
+            <div id="multiProgressContainer"
+                style="max-height: 250px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">
             </div>
-            <div class="progress-percent" id="progressText">0%</div>
-            <p style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-info-circle"></i> Proses
-                berjalan. Jika Batch (Banyak Link), indikator ini akan berulang untuk setiap file.</p>
+        
+            <p style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-info-circle"></i> Proses sedang
+                berjalan. Jangan tutup halaman ini sebelum selesai.</p>
         </div>
-
+        
         <div id="resultScreen" style="display: none;">
             <div class="status-text" id="finalMessage"></div>
             <div class="qr-wrapper" id="qrContainer" style="display: none;">
@@ -445,7 +446,7 @@
             <a href="/" style="text-decoration: none;"><button class="btn-primary back-btn"><i
                         class="fa-solid fa-rotate-left"></i> Download File Lain</button></a>
         </div>
-
+        
         <script>
             const taskId = "{{ task_id }}";
             const socket = io();
@@ -453,16 +454,66 @@
             const loadingScreen = document.getElementById('loadingScreen');
             const resultScreen = document.getElementById('resultScreen');
             const finalMessage = document.getElementById('finalMessage');
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
             const statusMessage = document.getElementById('statusMessage');
+            const multiProgressContainer = document.getElementById('multiProgressContainer');
 
             socket.on('progress', function (data) {
                 if (data.task_id === taskId) {
-                    let percent = parseFloat(data.progress);
-                    if (!isNaN(percent)) { progressBar.style.width = percent + "%"; progressText.innerText = percent.toFixed(1) + "%"; }
-                    if (data.processing_msg) { statusMessage.innerHTML = `<i class="fa-solid fa-spinner"></i> ` + data.processing_msg; }
-                    else if (percent > 0) { statusMessage.innerHTML = `<i class="fa-solid fa-download"></i> Mengunduh File...`; }
+
+                    // Jika ada pesan umum (seperti zipping atau persiapan)
+                    if (data.processing_msg && !data.file_id) {
+                        statusMessage.innerHTML = `<i class="fa-solid fa-spinner"></i> ` + data.processing_msg;
+                    }
+
+                    // Logika Multi Progress Bar per File
+                    if (data.file_id) {
+                        // Hilangkan pesan "Memulai download" default
+                        statusMessage.innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> Sedang Mengunduh...`;
+
+                        // Buat ID aman untuk elemen HTML
+                        let safeId = "prog_" + data.file_id.toString().replace(/[^a-zA-Z0-9]/g, "");
+                        let progWrapper = document.getElementById(safeId);
+
+                        // Jika bar untuk file ini belum ada, buat baru!
+                        if (!progWrapper) {
+                            progWrapper = document.createElement('div');
+                            progWrapper.id = safeId;
+                            progWrapper.style.marginBottom = "15px";
+                            progWrapper.style.textAlign = "left";
+
+                            // Template Progress Bar per file
+                            progWrapper.innerHTML = `
+                                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: var(--text-main);">
+                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; font-weight: 500;" title="${data.file_title}">
+                                                <i class="fa-solid fa-music"></i> ${data.file_title || 'File Media'}
+                                            </span>
+                                            <span id="txt_${safeId}" style="color: var(--success); font-weight: bold;">0%</span>
+                                        </div>
+                                        <div class="progress-wrapper" style="height: 10px; margin-bottom: 4px;">
+                                            <div class="progress-fill" id="bar_${safeId}" style="width: 0%;"></div>
+                                        </div>
+                                        <div id="msg_${safeId}" style="font-size: 10px; color: var(--text-muted); text-align: left;">Menyiapkan...</div>
+                                    `;
+                            multiProgressContainer.appendChild(progWrapper);
+
+                            // Auto-scroll ke bawah agar bar terbaru terlihat
+                            multiProgressContainer.scrollTop = multiProgressContainer.scrollHeight;
+                        }
+
+                        // Update Persentase
+                        let percent = parseFloat(data.progress);
+                        if (!isNaN(percent)) {
+                            document.getElementById("bar_" + safeId).style.width = percent + "%";
+                            document.getElementById("txt_" + safeId).innerText = percent.toFixed(1) + "%";
+                        }
+
+                        // Update Status File (Misal: "Mengunduh...", "Selesai")
+                        if (data.processing_msg) {
+                            let msgEl = document.getElementById("msg_" + safeId);
+                            msgEl.innerHTML = data.processing_msg;
+                            if (percent === 100) msgEl.style.color = "var(--success)";
+                        }
+                    }
                 }
             });
 
@@ -484,14 +535,13 @@
                 }
             });
         </script>
-
+        
         {% else %}
         <form method="POST" id="downloadForm">
             <div class="input-group">
                 <i class="fa-solid fa-link"></i>
-                <textarea name="url" id="urlInput"
-                    placeholder="Paste link YouTube, IG, TikTok, atau Spotify di sini...&#10;(Untuk Batch, paste banyak link pisahkan dengan Enter)"
-                    required></textarea>
+                <textarea name="url" id="urlInput" placeholder="Paste link YouTube, IG, TikTok, atau Spotify di sini...
+(Untuk Batch, paste banyak link pisahkan dengan Enter)" required></textarea>
             </div>
 
             <div class="preview-card" id="previewCard">
@@ -583,11 +633,11 @@
                     document.getElementById("resolutionSelect").style.display = "none";
                     document.getElementById("videoExtSelect").style.display = "none";
                     document.getElementById("audioQualitySelect").style.display = "none";
-                    
+
                     // Nonaktifkan fitur trim jika metadata karena tidak relevan
                     document.getElementById("enable_trim").checked = false;
                     document.getElementById("enable_trim").disabled = true;
-                    toggleTrim(); 
+                    toggleTrim();
                 } else {
                     document.getElementById("resolutionSelect").style.display = "block";
                     document.getElementById("videoExtSelect").style.display = "block";
@@ -599,63 +649,10 @@
             let typingTimer;
             const urlInput = document.getElementById('urlInput');
             const previewCard = document.getElementById('previewCard');
+            const audioQualitySelect = document.getElementById('audioQualitySelect');
 
-            urlInput.addEventListener('input', () => {
-                clearTimeout(typingTimer);
-                const rawUrl = urlInput.value.trim();
-
-                const urls = rawUrl.split(/\r?\n|,/).map(u => u.trim()).filter(u => u !== '');
-
-                const formatSelect = document.getElementById('formatSelect');
-                const resSelect = document.getElementById('resolutionSelect');
-                const videoExtSelect = document.getElementById('videoExtSelect');
-
-                if (urls.length > 1) {
-                    previewCard.style.display = 'flex';
-                    document.getElementById('previewTitle').innerHTML = "<i class='fa-solid fa-layer-group'></i> Mode Batch Aktif";
-                    document.getElementById('previewChannel').innerText = urls.length + " Link Terdeteksi";
-                    document.getElementById('previewDuration').innerHTML = "<i class='fa-solid fa-boxes-packing'></i> Multi-file";
-                    document.getElementById('previewImage').style.display = 'none'; 
-                    document.getElementById('enable_trim').disabled = true; 
-                    
-                    // Aktifkan semua opsi format di batch (Video, Audio, Metadata)
-                    Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
-                    return;
-                }
-
-                document.getElementById('previewImage').style.display = 'block';
-                document.getElementById('enable_trim').disabled = false;
-
-                // Logika Auto-Detect Platform untuk 1 link
-                if (urls.length === 1) {
-                    if (urls[0].includes('spotify.com')) {
-                        // Jika Spotify, jangan izinkan format Video, tapi boleh Audio atau Metadata
-                        Array.from(formatSelect.options).forEach(opt => {
-                            if(opt.value === 'video') opt.disabled = true;
-                            else opt.disabled = false;
-                        });
-                        if(formatSelect.value === 'video') {
-                            formatSelect.value = 'audio';
-                        }
-                        toggleOptions();
-                    } else {
-                        Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
-                        if (urls[0].includes('instagram.com') || urls[0].includes('tiktok.com')) {
-                            videoExtSelect.value = 'mp4'; videoExtSelect.disabled = true;
-                            Array.from(resSelect.options).forEach(opt => {
-                                if (parseInt(opt.value) > 1080) opt.style.display = 'none'; else opt.style.display = 'block';
-                            });
-                            if (parseInt(resSelect.value) > 1080) resSelect.value = '1080';
-                        } else {
-                            videoExtSelect.disabled = false; Array.from(resSelect.options).forEach(opt => opt.style.display = 'block');
-                        }
-                    }
-                }
-
-                if (urls.length === 0) { previewCard.style.display = 'none'; Array.from(formatSelect.options).forEach(opt => opt.disabled = false); return; }
-
-                typingTimer = setTimeout(() => { fetchPreviewData(urls[0]); }, 800);
-            });
+            // Simpan menu default (MP3, M4A, dll) agar bisa dikembalikan saat pengguna menghapus link Spotify
+            const originalAudioHTML = audioQualitySelect.innerHTML;
 
             urlInput.addEventListener('input', () => {
                 clearTimeout(typingTimer);
@@ -674,7 +671,9 @@
                     document.getElementById('previewDuration').innerHTML = "<i class='fa-solid fa-boxes-packing'></i> Multi-file";
                     document.getElementById('previewImage').style.display = 'none';
                     document.getElementById('enable_trim').disabled = true;
-                    formatSelect.disabled = false; // Buka pilihan format di batch
+
+                    audioQualitySelect.innerHTML = originalAudioHTML; // Pastikan menu normal di mode batch
+                    Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
                     return;
                 }
 
@@ -683,13 +682,26 @@
 
                 // Logika Auto-Detect Platform untuk 1 link
                 if (urls.length === 1) {
-                    if (urls[0].includes('spotify.com')) {
-                        // Jika Spotify, paksa ke Audio
+                    if (urls[0].includes('spotify.com') || urls[0].includes('spotify.com')) {
+                        // JIKA LINK SPOTIFY DETECTED
+                        // 1. Kunci format ke pilihan Audio saja
                         formatSelect.value = 'audio';
                         formatSelect.disabled = true;
+
+                        // 2. Ubah isi dropdown audio menjadi eksklusif FLAC
+                        audioQualitySelect.innerHTML = `
+                            <option value="flac" selected>💎 FLAC 16-bit / 44.1kHz (HiFi / CD Quality)</option>
+                            <option value="flac">💎 FLAC 24-bit / 48kHz (Hi-Res Audio)</option>
+                            <option value="flac">💎 FLAC 24-bit / 96kHz (Studio Master)</option>
+                            <option value="flac">💎 FLAC 24-bit / 192kHz (Ultimate Master)</option>
+                        `;
                         toggleOptions();
                     } else {
-                        formatSelect.disabled = false;
+                        // JIKA BUKAN LINK SPOTIFY
+                        // 1. Kembalikan dropdown audio ke menu normal (MP3, WAV, dll)
+                        audioQualitySelect.innerHTML = originalAudioHTML;
+                        Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
+
                         if (urls[0].includes('instagram.com') || urls[0].includes('tiktok.com')) {
                             videoExtSelect.value = 'mp4'; videoExtSelect.disabled = true;
                             Array.from(resSelect.options).forEach(opt => {
@@ -702,12 +714,17 @@
                     }
                 }
 
-                if (urls.length === 0) { previewCard.style.display = 'none'; formatSelect.disabled = false; return; }
+                if (urls.length === 0) {
+                    previewCard.style.display = 'none';
+                    audioQualitySelect.innerHTML = originalAudioHTML;
+                    Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
+                    return;
+                }
 
                 typingTimer = setTimeout(() => { fetchPreviewData(urls[0]); }, 800);
             });
 
-            // Mengaktifkan kembali format select sebelum disubmit jika sedang didisable (agar nilainya terkirim)
+            // Mengaktifkan kembali format select sebelum disubmit agar nilainya terkirim ke Python
             document.getElementById('downloadForm').addEventListener('submit', function () {
                 document.getElementById('formatSelect').disabled = false;
             });

@@ -1,17 +1,19 @@
 from flask import Flask, render_template, request, send_file, flash, jsonify, Response
 from flask_socketio import SocketIO
-from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
 import yt_dlp
 import os
 import time
-import threading
 import uuid
 import shutil
 import re 
 import urllib.request
-import subprocess 
 
-load_dotenv()
+# --- IMPORT MODUL BARU ---
+from SpotiFLAC import SpotiFLAC
+
 app = Flask(__name__)
 app.secret_key = "super_secret_key" 
 socketio = SocketIO(app, cors_allowed_origins="*") 
@@ -19,19 +21,30 @@ DOWNLOAD_FOLDER = 'downloads'
 
 tasks = {}
 
+# --- PENINGKATAN PERFORMA 1: Batasi maksimal download bersamaan ---
+executor = ThreadPoolExecutor(max_workers=3) 
+
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
+# --- PENINGKATAN PERFORMA 2: Pindahkan hapus file ke Background Job ---
 def hapus_file_lama():
     waktu_sekarang = time.time()
     for nama_item in os.listdir(DOWNLOAD_FOLDER):
         path_item = os.path.join(DOWNLOAD_FOLDER, nama_item)
         waktu_modifikasi = os.path.getmtime(path_item)
-        if waktu_sekarang - waktu_modifikasi > 300: 
+        # Hapus file yang lebih lama dari 10 menit (600 detik)
+        if waktu_sekarang - waktu_modifikasi > 600: 
             try:
                 if os.path.isfile(path_item): os.remove(path_item)
                 elif os.path.isdir(path_item): shutil.rmtree(path_item)
             except: pass
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=hapus_file_lama, trigger="interval", minutes=5)
+scheduler.start()
+
+atexit.register(lambda: scheduler.shutdown())
 
 def perbaiki_cookies(filepath='cookies.txt'):
     if not os.path.exists(filepath): return
@@ -143,61 +156,62 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
         spotify_urls = [u for u in urls if 'spotify.com' in u]
         other_urls = [u for u in urls if 'spotify.com' not in u]
 
-        # 1. Proses Spotify
+        # 1. Proses Spotify via modul SpotiFLAC
         if spotify_urls:
-            socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '10', 'processing_msg': 'Memproses dari Spotify...'})
+            socketio.emit('progress', {'task_id': task_id, 'processing_msg': 'Menyiapkan koneksi ke server Hi-Fi...'})
             
-            # Ambil kredensial dari file .env
-            SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-            SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-
-            # Validasi jika kredensial .env kosong
-            if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
-                socketio.emit('error', {'task_id': task_id, 'error': 'API Key Spotify belum dikonfigurasi di file .env!'})
-                return
-
-            if format_choice == 'metadata':
-                # Hanya simpan metadata ke file JSON
-                for i, s_url in enumerate(spotify_urls):
-                    meta_filename = f"{task_folder}/spotify_metadata_{i+1}.json"
-                    cmd = [
-                        'spotdl', 'save', s_url, 
-                        '--save-file', meta_filename,
-                        '--client-id', SPOTIFY_CLIENT_ID,
-                        '--client-secret', SPOTIFY_CLIENT_SECRET
-                    ]
-                    subprocess.run(cmd, check=True)
-                socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '50', 'processing_msg': 'Metadata Spotify berhasil diambil...'})
-            else:
-                spotdl_format = 'mp3'
-                if audio_quality in ['m4a', 'flac', 'wav', 'opus']: spotdl_format = audio_quality
-
-                for s_url in spotify_urls:
-                    cmd = [
-                        'spotdl', 'download', s_url,
-                        '--output', f"{task_folder}/{{artist}} - {{title}}.{{ext}}",
-                        '--format', spotdl_format,
-                        '--client-id', SPOTIFY_CLIENT_ID,
-                        '--client-secret', SPOTIFY_CLIENT_SECRET
-                    ]
-                    subprocess.run(cmd, check=True)
-                socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '50', 'processing_msg': 'Mengunduh file Spotify...'})
+            for i, s_url in enumerate(spotify_urls):
+                file_id = f"spotify_track_{i}"
+                file_title = f"Spotify Audio Track {i+1}"
                 
+                socketio.emit('progress', {'task_id': task_id, 'file_id': file_id, 'file_title': file_title, 'progress': '10', 'processing_msg': 'Mencari di Tidal/Qobuz...'})
+                try:
+                    SpotiFLAC(
+                        url=s_url,
+                        output_dir=task_folder,
+                        services=["tidal", "qobuz", "deezer", "amazon"],
+                        filename_format="{artist} - {title}",
+                        use_track_numbers=False,
+                        use_artist_subfolders=False,
+                        use_album_subfolders=False
+                    )
+                    socketio.emit('progress', {'task_id': task_id, 'file_id': file_id, 'file_title': file_title, 'progress': '100', 'processing_msg': 'Berhasil mengunduh FLAC Hi-Res'})
+                except Exception as e:
+                    socketio.emit('progress', {'task_id': task_id, 'file_id': file_id, 'file_title': file_title, 'progress': '0', 'processing_msg': f'Gagal: {str(e)}'})
+
         # 2. Proses URL Lain (YouTube, IG, TikTok, dll)
         if other_urls:
             def progress_hook(d):
+                # Ambil info spesifik video
+                info = d.get('info_dict', {})
+                file_title = info.get('title', 'Media Tanpa Judul')
+                file_id = info.get('id', str(hash(d.get('filename', file_title)))) # Buat ID Unik
+                
                 if d['status'] == 'downloading':
                     downloaded = d.get('downloaded_bytes', 0)
                     total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
                     if total > 0:
                         percent = (downloaded / total) * 100
-                        socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': f"{percent:.1f}"})
+                        percent_str = f"{percent:.1f}"
                     else:
                         percent_str = d.get('_percent_str', '0.0%')
-                        clean_percent = re.sub(r'\x1b\[[0-9;]*m', '', percent_str).replace('%', '').strip()
-                        socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': clean_percent})
+                        percent_str = re.sub(r'\x1b\[[0-9;]*m', '', percent_str).replace('%', '').strip()
+                        
+                    socketio.emit('progress', {
+                        'task_id': task_id, 
+                        'file_id': file_id, 
+                        'file_title': file_title, 
+                        'progress': percent_str,
+                        'processing_msg': 'Mengunduh data...'
+                    })
                 elif d['status'] == 'finished':
-                    socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '100', 'processing_msg': 'Memproses/Menyimpan File...'})
+                    socketio.emit('progress', {
+                        'task_id': task_id, 
+                        'file_id': file_id, 
+                        'file_title': file_title, 
+                        'progress': '100', 
+                        'processing_msg': 'Menyatukan Audio & Video...'
+                    })
 
             ydl_opts = {
                 'outtmpl': os.path.join(task_folder, '%(title)s.%(ext)s'), 'noplaylist': not is_playlist,
@@ -211,11 +225,7 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
 
             # Jika format yang diminta HANYA METADATA
             if format_choice == 'metadata':
-                ydl_opts.update({
-                    'skip_download': True,      # Jangan unduh video/audio
-                    'writeinfojson': True,      # Simpan file .info.json
-                    'clean_infojson': False     # Biarkan semua info metadata utuh
-                })
+                ydl_opts.update({'skip_download': True, 'writeinfojson': True, 'clean_infojson': False})
             else:
                 if start_time or end_time:
                     mulai_sec = parse_waktu(start_time) or 0
@@ -263,7 +273,7 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
         elif len(downloaded_files) == 1:
             tasks[task_id] = {'filename': os.path.join(task_folder, downloaded_files[0])}
         else:
-            socketio.emit('progress', {'task_id': task_id, 'status': 'processing', 'progress': '100', 'processing_msg': 'Membungkus ke dalam file ZIP...'})
+            socketio.emit('progress', {'task_id': task_id, 'processing_msg': 'Membungkus semua file ke dalam ZIP...'})
             zip_filename_base = os.path.join(DOWNLOAD_FOLDER, f"Media_Batch_{task_id}")
             shutil.make_archive(zip_filename_base, 'zip', task_folder)
             tasks[task_id] = {'filename': f"{zip_filename_base}.zip"}
@@ -273,10 +283,8 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
     except Exception as e:
         socketio.emit('error', {'task_id': task_id, 'error': str(e)})
 
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    hapus_file_lama()
     if request.method == 'POST':
         urls_raw = request.form.get('url', '')
         urls = [u.strip() for u in urls_raw.replace(',', '\n').split('\n') if u.strip()]
@@ -294,9 +302,9 @@ def index():
             return render_template('index.html')
 
         task_id = str(uuid.uuid4())
-        thread = threading.Thread(target=proses_download_background, 
-                                  args=(task_id, urls, format_choice, resolution_choice, audio_quality, is_playlist, video_ext, start_time, end_time))
-        thread.start()
+        
+        executor.submit(proses_download_background, task_id, urls, format_choice, resolution_choice, audio_quality, is_playlist, video_ext, start_time, end_time)
+        
         return render_template('index.html', task_id=task_id)
 
     return render_template('index.html')
