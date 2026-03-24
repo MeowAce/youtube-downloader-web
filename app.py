@@ -34,7 +34,7 @@ def hapus_file_lama():
     for nama_item in os.listdir(DOWNLOAD_FOLDER):
         path_item = os.path.join(DOWNLOAD_FOLDER, nama_item)
         waktu_modifikasi = os.path.getmtime(path_item)
-        if waktu_sekarang - waktu_modifikasi > 600: 
+        if waktu_sekarang - waktu_modifikasi > 300: 
             try:
                 if os.path.isfile(path_item): os.remove(path_item)
                 elif os.path.isdir(path_item): shutil.rmtree(path_item)
