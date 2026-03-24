@@ -5,63 +5,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <title>Media Downloader Pro - Batch & Multi-Format</title>
+    <title>Media Downloader Pro</title>
 
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Media DL">
-    <link rel="apple-touch-icon" href="/static/icon-192.png">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.1/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         :root {
-            --bg-body: #0a0a0a;
-            --bg-card: #171717;
-            --bg-input: #121212;
-            --border-color: #262626;
-            --border-focus: #ef4444;
-            --text-main: #ededed;
-            --text-muted: #a1a1aa;
-            --accent: #ef4444;
-            --accent-hover: #dc2626;
+            --bg-body: #0f111a;
+            --bg-card: #181a25;
+            --bg-input: #232533;
+            --border-color: #2e3042;
+            --border-focus: #6366f1;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
             --success: #10b981;
             --error: #ef4444;
-            --btn-back: #27272a;
-            --btn-back-hover: #3f3f46;
-            --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.4);
-            --placeholder-img: #27272a;
+            --btn-back: #2e3042;
+            --btn-back-hover: #3b3d52;
+            --shadow-card: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            --placeholder-img: #232533;
         }
 
         [data-theme="light"] {
-            --bg-body: #f3f4f6;
+            --bg-body: #f8fafc;
             --bg-card: #ffffff;
-            --bg-input: #f9fafb;
-            --border-color: #e5e7eb;
-            --border-focus: #ef4444;
-            --text-main: #1f2937;
-            --text-muted: #6b7280;
-            --accent: #ef4444;
-            --accent-hover: #dc2626;
+            --bg-input: #f1f5f9;
+            --border-color: #e2e8f0;
+            --border-focus: #6366f1;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
             --success: #10b981;
             --error: #ef4444;
-            --btn-back: #e5e7eb;
-            --btn-back-hover: #d1d5db;
-            --shadow-card: 0 10px 25px rgba(0, 0, 0, 0.05);
-            --placeholder-img: #e5e7eb;
+            --btn-back: #e2e8f0;
+            --btn-back-hover: #cbd5e1;
+            --shadow-card: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            --placeholder-img: #e2e8f0;
         }
 
         * {
-            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: var(--bg-body);
             display: flex;
             justify-content: center;
@@ -88,36 +89,36 @@
             justify-content: center;
             font-size: 18px;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
             z-index: 100;
         }
 
         .theme-toggle:hover {
             background: var(--bg-input);
-            transform: scale(1.05);
+            transform: translateY(-2px);
         }
 
         .container {
             background: var(--bg-card);
             padding: 40px;
-            border-radius: 16px;
+            border-radius: 20px;
             border: 1px solid var(--border-color);
             box-shadow: var(--shadow-card);
             width: 100%;
-            max-width: 450px;
-            box-sizing: border-box;
+            max-width: 480px;
             text-align: center;
         }
 
         h2 {
             margin-top: 0;
             margin-bottom: 24px;
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 12px;
+            color: var(--text-main);
         }
 
         h2 i {
@@ -129,7 +130,7 @@
             margin-bottom: 16px;
         }
 
-        .input-group i {
+        .input-group i.fa-link {
             position: absolute;
             left: 16px;
             top: 15px;
@@ -139,12 +140,11 @@
 
         textarea {
             width: 100%;
-            padding: 14px 16px 14px 40px;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
+            padding: 14px 44px 14px 40px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
             font-size: 14px;
-            font-family: 'Inter', sans-serif;
-            box-sizing: border-box;
+            font-family: inherit;
             outline: none;
             background-color: var(--bg-input);
             color: var(--text-main);
@@ -155,102 +155,63 @@
         }
 
         textarea:focus {
-            border-color: var(--border-focus);
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
         }
 
-        textarea::placeholder {
-            color: var(--text-muted);
-        }
-
-        select {
-            width: 100%;
-            padding: 14px 16px;
-            margin-bottom: 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            font-size: 14px;
-            font-family: 'Inter', sans-serif;
-            box-sizing: border-box;
-            outline: none;
-            background-color: var(--bg-input);
-            color: var(--text-main);
-            appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 16px center;
-            background-size: 14px;
-        }
-
-        select:focus {
-            border-color: var(--border-focus);
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
-        }
-
-        button.btn-primary {
-            background-color: var(--accent);
-            color: white;
+        .clear-btn {
+            position: absolute;
+            right: 12px;
+            top: 12px;
+            background: rgba(148, 163, 184, 0.2);
             border: none;
-            padding: 14px;
-            font-size: 15px;
-            font-weight: 600;
-            border-radius: 10px;
+            color: var(--text-main);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
             cursor: pointer;
-            width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            font-size: 12px;
         }
 
-        button.btn-primary:hover {
-            background-color: var(--accent-hover);
+        .clear-btn:hover {
+            background: var(--error);
+            color: white;
         }
 
-        .checkbox-container {
-            display: flex;
-            align-items: center;
-            justify-content: left;
-            margin-bottom: 16px;
-            background: var(--bg-input);
-            padding: 12px 16px;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
+        /* SKELETON LOADING */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-input) 25%, var(--border-color) 50%, var(--bg-input) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite linear;
+            border-radius: 6px;
         }
 
-        .checkbox-container input[type="checkbox"] {
-            margin-right: 12px;
-            width: 16px;
-            height: 16px;
-            accent-color: var(--accent);
-            cursor: pointer;
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
         }
 
-        .checkbox-container label {
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .skeleton-img {
+            width: 100px;
+            height: 56px;
         }
 
-        .status-text {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 12px;
+        .skeleton-text {
+            height: 14px;
+            margin-bottom: 8px;
+            width: 80%;
         }
 
-        .back-btn {
-            background-color: var(--btn-back);
-            color: var(--text-main);
-            margin-top: 20px;
-        }
-
-        .back-btn:hover {
-            background-color: var(--btn-back-hover);
+        .skeleton-text.short {
+            width: 50%;
         }
 
         .preview-card {
@@ -258,19 +219,20 @@
             align-items: center;
             gap: 12px;
             background: var(--bg-input);
-            padding: 10px;
-            border-radius: 10px;
+            padding: 12px;
+            border-radius: 12px;
             border: 1px solid var(--border-color);
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             text-align: left;
         }
 
         .preview-card img {
             width: 100px;
             height: 56px;
-            border-radius: 6px;
+            border-radius: 8px;
             object-fit: cover;
             background: var(--placeholder-img);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .preview-info {
@@ -280,57 +242,129 @@
 
         .preview-title {
             margin: 0 0 4px 0;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            color: var(--text-main);
         }
 
         .preview-channel {
             margin: 0 0 6px 0;
-            font-size: 11px;
+            font-size: 12px;
             color: var(--text-muted);
         }
 
         .preview-duration {
-            font-size: 10px;
-            background: var(--btn-back);
-            padding: 3px 6px;
-            border-radius: 4px;
+            font-size: 11px;
+            background: var(--border-color);
+            padding: 3px 8px;
+            border-radius: 6px;
             font-weight: 600;
+        }
+
+        /* ACCORDION (PENGATURAN LANJUTAN) */
+        .advanced-toggle {
+            width: 100%;
+            background: none;
+            border: 1px dashed var(--border-color);
+            color: var(--text-muted);
+            padding: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        .advanced-toggle:hover {
+            border-color: var(--text-muted);
             color: var(--text-main);
         }
 
-        .progress-wrapper {
+        .advanced-content {
+            display: none;
+            margin-bottom: 16px;
+        }
+
+        .advanced-content.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        select {
             width: 100%;
-            background-color: var(--bg-input);
-            border-radius: 8px;
-            height: 16px;
-            overflow: hidden;
-            margin-bottom: 10px;
-            border: 1px solid var(--border-color);
-        }
-
-        .progress-fill {
-            height: 100%;
-            background-color: var(--success);
-            width: 0%;
-            transition: width 0.4s ease;
-        }
-
-        .progress-percent {
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
             font-size: 14px;
-            font-weight: bold;
-            color: var(--success);
-            margin-bottom: 15px;
+            font-family: inherit;
+            font-weight: 500;
+            outline: none;
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 14px;
+            cursor: pointer;
+        }
+
+        select:focus {
+            border-color: var(--accent);
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            background: var(--bg-input);
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .checkbox-container label {
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text-main);
+            flex: 1;
+            text-align: left;
         }
 
         .trim-container {
             display: none;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .trim-box {
@@ -338,54 +372,86 @@
             text-align: left;
         }
 
-        .trim-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            font-weight: 600;
-            display: block;
-            margin-bottom: 6px;
-        }
-
-        .trim-input-wrapper {
-            position: relative;
-        }
-
-        .trim-input-wrapper i {
-            position: absolute;
-            left: 12px;
-            top: 13px;
-            color: var(--text-muted);
-            font-size: 12px;
-        }
-
         .trim-input {
-            margin-bottom: 0 !important;
-            padding-left: 32px !important;
             width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
+            padding: 12px;
+            border: 2px solid var(--border-color);
             border-radius: 10px;
             background: var(--bg-input);
             color: var(--text-main);
+            font-family: inherit;
+            text-align: center;
+            font-weight: 600;
         }
 
-        .fa-spinner {
-            animation: spin 1s linear infinite;
+        .trim-input:focus {
+            border-color: var(--accent);
+            outline: none;
         }
 
-        @keyframes spin {
-            100% {
-                transform: rotate(360deg);
-            }
+        button.btn-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: inherit;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        button.btn-primary:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        .status-text {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .progress-wrapper {
+            width: 100%;
+            background-color: var(--bg-body);
+            border-radius: 8px;
+            height: 12px;
+            overflow: hidden;
+            margin: 8px 0;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+
+        .progress-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
         }
 
         .qr-wrapper {
             background: white;
-            padding: 15px;
-            border-radius: 12px;
+            padding: 16px;
+            border-radius: 16px;
             display: inline-block;
-            margin: 15px 0;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
 
         #qrcode img {
@@ -396,17 +462,16 @@
         @media (max-width: 480px) {
             .container {
                 padding: 24px 20px;
-                border-radius: 12px;
+                border-radius: 0;
                 border: none;
                 box-shadow: none;
-                margin-top: 50px;
+                min-height: 100vh;
             }
 
             body {
                 padding: 0;
                 background-color: var(--bg-card);
                 align-items: flex-start;
-                padding-top: 10px;
             }
 
             .theme-toggle {
@@ -422,96 +487,103 @@
     <button id="themeToggle" class="theme-toggle" aria-label="Ganti Tema"><i class="fa-solid fa-moon"></i></button>
 
     <div class="container">
-        <h2><i class="fa-solid fa-cloud-arrow-down"></i> Media Downloader</h2>
+        <h2><i class="fa-solid fa-layer-group"></i> Media Downloader</h2>
 
         {% if task_id %}
         <div id="loadingScreen">
-            <div class="status-text" id="statusMessage"><i class="fa-solid fa-spinner"></i> Memulai Download...</div>
-        
+            <div class="status-text" id="statusMessage"><i class="fa-solid fa-circle-notch fa-spin text-accent"></i>
+                Memulai Download...</div>
+
             <div id="multiProgressContainer"
-                style="max-height: 250px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">
-            </div>
-        
-            <p style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-info-circle"></i> Proses sedang
-                berjalan. Jangan tutup halaman ini sebelum selesai.</p>
+                style="max-height: 300px; overflow-y: auto; padding-right: 5px; margin-bottom: 15px;"></div>
+
+            <p style="font-size: 12px; color: var(--text-muted);"><i class="fa-solid fa-shield-halved"></i> Proses
+                berjalan aman. Jangan tutup halaman ini.</p>
+
+            <button id="cancelBtn" class="btn-primary"
+                style="background-color: var(--bg-input); box-shadow:none; color: var(--error); border: 1px solid var(--error); margin-top: 20px;">
+                <i class="fa-solid fa-xmark"></i> Batalkan
+            </button>
         </div>
-        
+
         <div id="resultScreen" style="display: none;">
             <div class="status-text" id="finalMessage"></div>
             <div class="qr-wrapper" id="qrContainer" style="display: none;">
                 <div id="qrcode"></div>
             </div>
-            <p id="qrHelpText" style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px; display: none;"><i
-                    class="fa-solid fa-mobile-screen"></i> Scan QR Code ini untuk mengirim file ke HP Anda.</p>
-            <a href="/" style="text-decoration: none;"><button class="btn-primary back-btn"><i
-                        class="fa-solid fa-rotate-left"></i> Download File Lain</button></a>
+            <p id="qrHelpText" style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px; display: none;"><i
+                    class="fa-solid fa-mobile-screen"></i> Scan QR untuk simpan ke HP Anda.</p>
+            <a href="/" style="text-decoration: none;"><button class="btn-primary"
+                    style="background-color: var(--btn-back); box-shadow:none; color: var(--text-main);"><i
+                        class="fa-solid fa-arrow-left"></i> Download File Lain</button></a>
         </div>
-        
+
         <script>
             const taskId = "{{ task_id }}";
             const socket = io();
 
             const loadingScreen = document.getElementById('loadingScreen');
             const resultScreen = document.getElementById('resultScreen');
-            const finalMessage = document.getElementById('finalMessage');
-            const statusMessage = document.getElementById('statusMessage');
             const multiProgressContainer = document.getElementById('multiProgressContainer');
 
             socket.on('progress', function (data) {
                 if (data.task_id === taskId) {
-
-                    // Jika ada pesan umum (seperti zipping atau persiapan)
                     if (data.processing_msg && !data.file_id) {
-                        statusMessage.innerHTML = `<i class="fa-solid fa-spinner"></i> ` + data.processing_msg;
+                        document.getElementById('statusMessage').innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ` + data.processing_msg;
                     }
 
-                    // Logika Multi Progress Bar per File
                     if (data.file_id) {
-                        // Hilangkan pesan "Memulai download" default
-                        statusMessage.innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> Sedang Mengunduh...`;
+                        document.getElementById('statusMessage').innerHTML = `<i class="fa-solid fa-cloud-arrow-down"></i> Sedang Mengunduh...`;
 
-                        // Buat ID aman untuk elemen HTML
                         let safeId = "prog_" + data.file_id.toString().replace(/[^a-zA-Z0-9]/g, "");
                         let progWrapper = document.getElementById(safeId);
 
-                        // Jika bar untuk file ini belum ada, buat baru!
                         if (!progWrapper) {
                             progWrapper = document.createElement('div');
                             progWrapper.id = safeId;
-                            progWrapper.style.marginBottom = "15px";
+                            progWrapper.style.marginBottom = "20px";
                             progWrapper.style.textAlign = "left";
 
-                            // Template Progress Bar per file
                             progWrapper.innerHTML = `
-                                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: var(--text-main);">
-                                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; font-weight: 500;" title="${data.file_title}">
-                                                <i class="fa-solid fa-music"></i> ${data.file_title || 'File Media'}
-                                            </span>
-                                            <span id="txt_${safeId}" style="color: var(--success); font-weight: bold;">0%</span>
-                                        </div>
-                                        <div class="progress-wrapper" style="height: 10px; margin-bottom: 4px;">
-                                            <div class="progress-fill" id="bar_${safeId}" style="width: 0%;"></div>
-                                        </div>
-                                        <div id="msg_${safeId}" style="font-size: 10px; color: var(--text-muted); text-align: left;">Menyiapkan...</div>
-                                    `;
+                                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; color: var(--text-main); font-weight: 600;">
+                                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;" title="${data.file_title}">
+                                        <i class="fa-regular fa-file-video"></i> ${data.file_title || 'File Media'}
+                                    </span>
+                                    <span id="txt_${safeId}" style="color: var(--accent);">0%</span>
+                                </div>
+                                <div class="progress-wrapper">
+                                    <div class="progress-fill" id="bar_${safeId}" style="width: 0%;"></div>
+                                </div>
+                                <div class="progress-details">
+                                    <span id="size_${safeId}">-- MB</span>
+                                    <span id="speed_${safeId}">-- MB/s</span>
+                                    <span id="eta_${safeId}">ETA: --:--</span>
+                                </div>
+                                <div id="msg_${safeId}" style="font-size: 11px; color: var(--text-muted); margin-top:4px;">Menyiapkan...</div>
+                            `;
                             multiProgressContainer.appendChild(progWrapper);
-
-                            // Auto-scroll ke bawah agar bar terbaru terlihat
                             multiProgressContainer.scrollTop = multiProgressContainer.scrollHeight;
                         }
 
-                        // Update Persentase
                         let percent = parseFloat(data.progress);
                         if (!isNaN(percent)) {
                             document.getElementById("bar_" + safeId).style.width = percent + "%";
                             document.getElementById("txt_" + safeId).innerText = percent.toFixed(1) + "%";
                         }
 
-                        // Update Status File (Misal: "Mengunduh...", "Selesai")
+                        // Update info ekstra UI baru
+                        if (data.size && data.size !== 'N/A') document.getElementById("size_" + safeId).innerText = data.size;
+                        if (data.speed && data.speed !== 'N/A') document.getElementById("speed_" + safeId).innerText = data.speed;
+                        if (data.eta && data.eta !== 'N/A') document.getElementById("eta_" + safeId).innerText = "ETA: " + data.eta;
+
                         if (data.processing_msg) {
                             let msgEl = document.getElementById("msg_" + safeId);
                             msgEl.innerHTML = data.processing_msg;
-                            if (percent === 100) msgEl.style.color = "var(--success)";
+                            if (percent === 100) {
+                                msgEl.style.color = "var(--success)";
+                                document.getElementById("bar_" + safeId).style.backgroundColor = "var(--success)";
+                                document.getElementById("bar_" + safeId).style.boxShadow = "0 0 10px rgba(16, 185, 129, 0.4)";
+                            }
                         }
                     }
                 }
@@ -520,10 +592,11 @@
             socket.on('completed', function (data) {
                 if (data.task_id === taskId) {
                     loadingScreen.style.display = 'none'; resultScreen.style.display = 'block';
-                    finalMessage.innerHTML = "<i class='fa-solid fa-circle-check'></i> Selesai! File siap diunduh."; finalMessage.style.color = "var(--success)";
+                    document.getElementById('finalMessage').innerHTML = "<i class='fa-solid fa-circle-check'></i> Selesai! File siap diunduh.";
+                    document.getElementById('finalMessage').style.color = "var(--success)";
                     const downloadUrl = window.location.origin + '/ambil_file/' + taskId;
                     document.getElementById('qrContainer').style.display = 'inline-block'; document.getElementById('qrHelpText').style.display = 'block';
-                    new QRCode(document.getElementById("qrcode"), { text: downloadUrl, width: 140, height: 140, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L });
+                    new QRCode(document.getElementById("qrcode"), { text: downloadUrl, width: 150, height: 150, colorDark: "#0f172a", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L });
                     window.location.href = downloadUrl;
                 }
             });
@@ -531,93 +604,147 @@
             socket.on('error', function (data) {
                 if (data.task_id === taskId) {
                     loadingScreen.style.display = 'none'; resultScreen.style.display = 'block';
-                    finalMessage.innerHTML = "<i class='fa-solid fa-circle-xmark'></i> Terjadi Kesalahan:<br><span style='font-size:12px; font-weight:normal; color: var(--text-muted); display: block; margin-top:5px;'>" + data.error + "</span>"; finalMessage.style.color = "var(--error)";
+                    document.getElementById('finalMessage').innerHTML = "<i class='fa-solid fa-circle-xmark'></i> Terjadi Kesalahan:<br><span style='font-size:13px; font-weight:normal; color: var(--text-muted); display: block; margin-top:8px;'>" + data.error + "</span>";
+                    document.getElementById('finalMessage').style.color = "var(--error)";
                 }
             });
+
+            document.getElementById('cancelBtn').addEventListener('click', function () {
+                Swal.fire({
+                    title: 'Batalkan Unduhan?',
+                    text: "Proses yang sedang berjalan akan dihentikan.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#2e3042',
+                    confirmButtonText: 'Ya, Batalkan'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch('/cancel/' + taskId, { method: 'POST' });
+                        this.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i> Membatalkan...";
+                        this.disabled = true;
+                    }
+                })
+            });
         </script>
-        
+
         {% else %}
         <form method="POST" id="downloadForm">
             <div class="input-group">
                 <i class="fa-solid fa-link"></i>
-                <textarea name="url" id="urlInput" placeholder="Paste link YouTube, IG, TikTok, atau Spotify di sini...
-(Untuk Batch, paste banyak link pisahkan dengan Enter)" required></textarea>
+                <textarea name="url" id="urlInput" placeholder="Tempel link YouTube, IG, TikTok..." required></textarea>
+                <button type="button" id="clearBtn" class="clear-btn" style="display:none;"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
 
             <div class="preview-card" id="previewCard">
-                <img id="previewImage" src="" alt="Thumbnail">
-                <div class="preview-info">
-                    <h4 class="preview-title" id="previewTitle">Memuat info...</h4>
-                    <p class="preview-channel" id="previewChannel">Harap tunggu sebentar</p>
-                    <span class="preview-duration" id="previewDuration">00:00</span>
+                <div id="skeletonFrame" style="display: flex; gap: 12px; width: 100%;">
+                    <div class="skeleton skeleton-img"></div>
+                    <div style="flex: 1;">
+                        <div class="skeleton skeleton-text"></div>
+                        <div class="skeleton skeleton-text short"></div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="checkbox-container">
-                <input type="checkbox" id="is_playlist" name="is_playlist">
-                <label for="is_playlist"><i class="fa-solid fa-list"></i> Download Seluruh Playlist / Carousel
-                    IG</label>
-            </div>
-
-            <div class="checkbox-container">
-                <input type="checkbox" id="enable_trim" onchange="toggleTrim()">
-                <label for="enable_trim"><i class="fa-solid fa-scissors"></i> Potong Durasi (Hanya untuk 1 Link)</label>
-            </div>
-
-            <div class="trim-container" id="trimOptions">
-                <div class="trim-box">
-                    <label class="trim-label">MULAI (MM:SS)</label>
-                    <div class="trim-input-wrapper"><i class="fa-regular fa-clock"></i><input type="text"
-                            name="start_time" class="trim-input" placeholder="00:00"></div>
-                </div>
-                <div class="trim-box">
-                    <label class="trim-label">SELESAI (MM:SS)</label>
-                    <div class="trim-input-wrapper"><i class="fa-solid fa-stopwatch"></i><input type="text"
-                            name="end_time" class="trim-input" placeholder="00:00"></div>
+                <div id="realFrame" style="display: none; width: 100%; align-items: center; gap: 12px;">
+                    <img id="previewImage" src="" alt="Thumbnail">
+                    <div class="preview-info">
+                        <h4 class="preview-title" id="previewTitle">Judul</h4>
+                        <p class="preview-channel" id="previewChannel">Channel</p>
+                        <span class="preview-duration" id="previewDuration">00:00</span>
+                    </div>
                 </div>
             </div>
 
             <select name="format" id="formatSelect" onchange="toggleOptions()" required>
-                <option value="video">🎥 Format: Video Lengkap</option>
+                <option value="video" selected>🎥 Format: Video Lengkap</option>
                 <option value="audio">🎵 Format: Hanya Audio</option>
                 <option value="metadata">📄 Format: Hanya Metadata (JSON)</option>
             </select>
 
-            <select name="video_ext" id="videoExtSelect">
-                <option value="mp4" selected>Ekstensi Video: MP4 (Standar)</option>
-                <option value="mkv">Ekstensi Video: MKV (Untuk 8K/4K)</option>
-                <option value="webm">Ekstensi Video: WebM</option>
-                <option value="avi">Ekstensi Video: AVI</option>
-                <option value="mov">Ekstensi Video: MOV (Apple)</option>
-            </select>
+            <button type="button" id="toggleAdvanced" class="advanced-toggle">⚙️ Pengaturan Lanjutan <i
+                    class="fa-solid fa-chevron-down"></i></button>
 
-            <select name="resolution" id="resolutionSelect">
-                <option value="4320">Resolusi: 8K (4320p)</option>
-                <option value="2160">Resolusi: 4K (2160p)</option>
-                <option value="1440">Resolusi: 2K (1440p)</option>
-                <option value="1080" selected>Resolusi: Full HD (1080p)</option>
-                <option value="720">Resolusi: HD (720p)</option>
-                <option value="480">Resolusi: SD (480p)</option>
-            </select>
+            <div id="advancedSettings" class="advanced-content">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="is_playlist" name="is_playlist">
+                    <label for="is_playlist"><i class="fa-solid fa-list-ol"></i> Download Seluruh Playlist / Carousel
+                        IG</label>
+                </div>
 
-            <select name="audio_quality" id="audioQualitySelect" style="display: none;">
-                <option value="mp3_192" selected>Audio: MP3 (192kbps)</option>
-                <option value="mp3_320">Audio: MP3 (320kbps Tinggi)</option>
-                <option value="m4a">Audio: M4A (Apple AAC)</option>
-                <option value="webm">Audio: WebM (Opus/Vorbis)</option>
-                <option value="wav">Audio: WAV (Lossless Uncompressed)</option>
-                <option value="flac">Audio: FLAC (Lossless HD)</option>
-                <option value="opus">Audio: OPUS (Kecil & Jernih)</option>
-            </select>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="enable_trim" onchange="toggleTrim()">
+                    <label for="enable_trim"><i class="fa-solid fa-scissors"></i> Potong Durasi (Khusus 1 Link)</label>
+                </div>
 
-            <button type="submit" class="btn-primary"><i class="fa-solid fa-download"></i> Download Sekarang</button>
+                <div class="trim-container" id="trimOptions">
+                    <div class="trim-box">
+                        <input type="text" name="start_time" class="trim-input" placeholder="Mulai (MM:SS)">
+                    </div>
+                    <div class="trim-box">
+                        <input type="text" name="end_time" class="trim-input" placeholder="Selesai (MM:SS)">
+                    </div>
+                </div>
+
+                <select name="video_ext" id="videoExtSelect">
+                    <option value="mp4" selected>Ekstensi: MP4 (Standar)</option>
+                    <option value="mkv">Ekstensi: MKV (4K/8K)</option>
+                    <option value="webm">Ekstensi: WebM</option>
+                </select>
+
+                <select name="resolution" id="resolutionSelect">
+                    <option value="4320">Kualitas: 8K (4320p)</option>
+                    <option value="2160">Kualitas: 4K (2160p)</option>
+                    <option value="1080" selected>Kualitas: Full HD (1080p)</option>
+                    <option value="720">Kualitas: HD (720p)</option>
+                    <option value="480">Kualitas: SD (480p)</option>
+                </select>
+
+                <select name="audio_quality" id="audioQualitySelect" style="display: none;">
+                    <option value="mp3_320" selected>Audio: MP3 (320kbps Tinggi)</option>
+                    <option value="mp3_192">Audio: MP3 (192kbps)</option>
+                    <option value="m4a">Audio: M4A (Apple AAC)</option>
+                    <option value="flac">Audio: FLAC (Lossless HD)</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-primary" id="submitBtn"><i class="fa-solid fa-download"></i> Mulai
+                Download</button>
         </form>
 
         <script>
+            // --- Fitur Simpan Preferensi (LocalStorage) ---
+            document.addEventListener("DOMContentLoaded", () => {
+                const savedFormat = localStorage.getItem('dl_format');
+                const savedRes = localStorage.getItem('dl_res');
+                const savedExt = localStorage.getItem('dl_ext');
+
+                if (savedFormat) document.getElementById('formatSelect').value = savedFormat;
+                if (savedRes) document.getElementById('resolutionSelect').value = savedRes;
+                if (savedExt) document.getElementById('videoExtSelect').value = savedExt;
+
+                toggleOptions(); // Jalankan fungsi agar UI menyesuaikan pilihan tersimpan
+            });
+
+            // Menyimpan setiap kali pengguna mengubah pilihan
+            document.getElementById('formatSelect').addEventListener('change', (e) => localStorage.setItem('dl_format', e.target.value));
+            document.getElementById('resolutionSelect').addEventListener('change', (e) => localStorage.setItem('dl_res', e.target.value));
+            document.getElementById('videoExtSelect').addEventListener('change', (e) => localStorage.setItem('dl_ext', e.target.value));
+
+            // --- Logika UI Lainnya ---
+            document.getElementById('toggleAdvanced').addEventListener('click', function () {
+                const content = document.getElementById('advancedSettings');
+                const icon = this.querySelector('i');
+                if (content.classList.contains('show')) {
+                    content.classList.remove('show'); icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+                } else {
+                    content.classList.add('show'); icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+                }
+            });
+
             function toggleTrim() {
                 var isChecked = document.getElementById("enable_trim").checked;
                 var trimOptions = document.getElementById("trimOptions");
-                if (isChecked) trimOptions.style.display = "flex";
+                if (isChecked) { trimOptions.style.display = "flex"; document.getElementById("advancedSettings").classList.add('show'); }
                 else { trimOptions.style.display = "none"; document.querySelector('input[name="start_time"]').value = ""; document.querySelector('input[name="end_time"]').value = ""; }
             }
 
@@ -627,14 +754,11 @@
                     document.getElementById("resolutionSelect").style.display = "none";
                     document.getElementById("videoExtSelect").style.display = "none";
                     document.getElementById("audioQualitySelect").style.display = "block";
-                    document.getElementById("trimOptions").style.opacity = "1";
                     document.getElementById("enable_trim").disabled = false;
                 } else if (format === "metadata") {
                     document.getElementById("resolutionSelect").style.display = "none";
                     document.getElementById("videoExtSelect").style.display = "none";
                     document.getElementById("audioQualitySelect").style.display = "none";
-
-                    // Nonaktifkan fitur trim jika metadata karena tidak relevan
                     document.getElementById("enable_trim").checked = false;
                     document.getElementById("enable_trim").disabled = true;
                     toggleTrim();
@@ -646,110 +770,82 @@
                 }
             }
 
+            // --- Clear Button & Preview Logic ---
             let typingTimer;
             const urlInput = document.getElementById('urlInput');
+            const clearBtn = document.getElementById('clearBtn');
             const previewCard = document.getElementById('previewCard');
-            const audioQualitySelect = document.getElementById('audioQualitySelect');
+            const skeletonFrame = document.getElementById('skeletonFrame');
+            const realFrame = document.getElementById('realFrame');
 
-            // Simpan menu default (MP3, M4A, dll) agar bisa dikembalikan saat pengguna menghapus link Spotify
-            const originalAudioHTML = audioQualitySelect.innerHTML;
+            clearBtn.addEventListener('click', () => {
+                urlInput.value = '';
+                clearBtn.style.display = 'none';
+                previewCard.style.display = 'none';
+            });
 
             urlInput.addEventListener('input', () => {
                 clearTimeout(typingTimer);
                 const rawUrl = urlInput.value.trim();
 
+                if (rawUrl.length > 0) clearBtn.style.display = 'flex';
+                else clearBtn.style.display = 'none';
+
                 const urls = rawUrl.split(/\r?\n|,/).map(u => u.trim()).filter(u => u !== '');
 
-                const formatSelect = document.getElementById('formatSelect');
-                const resSelect = document.getElementById('resolutionSelect');
-                const videoExtSelect = document.getElementById('videoExtSelect');
+                if (urls.length === 0) { previewCard.style.display = 'none'; return; }
 
                 if (urls.length > 1) {
-                    previewCard.style.display = 'flex';
-                    document.getElementById('previewTitle').innerHTML = "<i class='fa-solid fa-layer-group'></i> Mode Batch Aktif";
+                    previewCard.style.display = 'flex'; skeletonFrame.style.display = 'none'; realFrame.style.display = 'flex';
+                    document.getElementById('previewTitle').innerHTML = "Mode Batch Aktif";
                     document.getElementById('previewChannel').innerText = urls.length + " Link Terdeteksi";
-                    document.getElementById('previewDuration').innerHTML = "<i class='fa-solid fa-boxes-packing'></i> Multi-file";
+                    document.getElementById('previewDuration').innerHTML = "Multi-file";
                     document.getElementById('previewImage').style.display = 'none';
                     document.getElementById('enable_trim').disabled = true;
-
-                    audioQualitySelect.innerHTML = originalAudioHTML; // Pastikan menu normal di mode batch
-                    Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
                     return;
                 }
 
-                document.getElementById('previewImage').style.display = 'block';
+                // Tampilkan Skeleton
+                previewCard.style.display = 'flex';
+                skeletonFrame.style.display = 'flex';
+                realFrame.style.display = 'none';
                 document.getElementById('enable_trim').disabled = false;
-
-                // Logika Auto-Detect Platform untuk 1 link
-                if (urls.length === 1) {
-                    if (urls[0].includes('spotify.com') || urls[0].includes('spotify.com')) {
-                        // JIKA LINK SPOTIFY DETECTED
-                        // 1. Kunci format ke pilihan Audio saja
-                        formatSelect.value = 'audio';
-                        formatSelect.disabled = true;
-
-                        // 2. Ubah isi dropdown audio menjadi eksklusif FLAC
-                        audioQualitySelect.innerHTML = `
-                            <option value="flac" selected>💎 FLAC 16-bit / 44.1kHz (HiFi / CD Quality)</option>
-                            <option value="flac">💎 FLAC 24-bit / 48kHz (Hi-Res Audio)</option>
-                            <option value="flac">💎 FLAC 24-bit / 96kHz (Studio Master)</option>
-                            <option value="flac">💎 FLAC 24-bit / 192kHz (Ultimate Master)</option>
-                        `;
-                        toggleOptions();
-                    } else {
-                        // JIKA BUKAN LINK SPOTIFY
-                        // 1. Kembalikan dropdown audio ke menu normal (MP3, WAV, dll)
-                        audioQualitySelect.innerHTML = originalAudioHTML;
-                        Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
-
-                        if (urls[0].includes('instagram.com') || urls[0].includes('tiktok.com')) {
-                            videoExtSelect.value = 'mp4'; videoExtSelect.disabled = true;
-                            Array.from(resSelect.options).forEach(opt => {
-                                if (parseInt(opt.value) > 1080) opt.style.display = 'none'; else opt.style.display = 'block';
-                            });
-                            if (parseInt(resSelect.value) > 1080) resSelect.value = '1080';
-                        } else {
-                            videoExtSelect.disabled = false; Array.from(resSelect.options).forEach(opt => opt.style.display = 'block');
-                        }
-                    }
-                }
-
-                if (urls.length === 0) {
-                    previewCard.style.display = 'none';
-                    audioQualitySelect.innerHTML = originalAudioHTML;
-                    Array.from(formatSelect.options).forEach(opt => opt.disabled = false);
-                    return;
-                }
 
                 typingTimer = setTimeout(() => { fetchPreviewData(urls[0]); }, 800);
             });
 
-            // Mengaktifkan kembali format select sebelum disubmit agar nilainya terkirim ke Python
-            document.getElementById('downloadForm').addEventListener('submit', function () {
-                document.getElementById('formatSelect').disabled = false;
-            });
-
             function fetchPreviewData(url) {
-                previewCard.style.display = 'flex';
-                document.getElementById('previewTitle').innerHTML = "<i class='fa-solid fa-spinner' style='color: var(--text-muted);'></i> <span style='color: var(--text-muted);'>Mencari media...</span>";
-                document.getElementById('previewChannel').innerText = "";
-
                 fetch('/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url }) })
                     .then(res => res.json())
                     .then(data => {
+                        skeletonFrame.style.display = 'none';
+                        realFrame.style.display = 'flex';
+                        document.getElementById('previewImage').style.display = 'block';
+
                         if (data.success) {
                             document.getElementById('previewTitle').innerText = data.title;
                             document.getElementById('previewChannel').innerText = data.uploader;
-                            document.getElementById('previewDuration').innerHTML = "<i class='fa-regular fa-clock'></i> " + data.duration;
+                            document.getElementById('previewDuration').innerText = data.duration;
                             if (data.thumbnail) {
-                                if (url.includes('instagram.com')) { document.getElementById('previewImage').src = '/proxy_gambar?url=' + encodeURIComponent(data.thumbnail); }
-                                else { document.getElementById('previewImage').src = data.thumbnail; }
+                                if (url.includes('instagram.com')) document.getElementById('previewImage').src = '/proxy_gambar?url=' + encodeURIComponent(data.thumbnail);
+                                else document.getElementById('previewImage').src = data.thumbnail;
+                            } else {
+                                document.getElementById('previewImage').src = "";
                             }
                         } else {
-                            document.getElementById('previewTitle').innerHTML = "<i class='fa-solid fa-circle-exclamation'></i> <span style='color: var(--error);'>Gagal memuat info</span>";
+                            // Gunakan SweetAlert Error
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Gagal memuat info video', showConfirmButton: false, timer: 3000 });
+                            previewCard.style.display = 'none';
                         }
+                    }).catch(() => {
+                        skeletonFrame.style.display = 'none'; previewCard.style.display = 'none';
                     });
             }
+
+            document.getElementById('downloadForm').addEventListener('submit', function () {
+                document.getElementById('submitBtn').innerHTML = "<i class='fa-solid fa-circle-notch fa-spin'></i> Memproses...";
+                document.getElementById('submitBtn').disabled = true;
+            });
         </script>
         {% endif %}
     </div>
@@ -762,16 +858,6 @@
         }
         const savedTheme = localStorage.getItem('ytTheme'); if (savedTheme) setTheme(savedTheme); else setTheme('dark');
         themeToggleBtn.addEventListener('click', () => { setTheme(htmlElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); });
-    </script>
-
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('PWA Service Worker terdaftar!', reg.scope))
-                    .catch(err => console.log('Gagal mendaftar Service Worker', err));
-            });
-        }
     </script>
 </body>
 

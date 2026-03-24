@@ -6,44 +6,54 @@ import atexit
 import yt_dlp
 import os
 import time
+import traceback
 import uuid
 import shutil
 import re 
 import urllib.request
+from dotenv import load_dotenv
 
-# --- IMPORT MODUL BARU ---
-from SpotiFLAC import SpotiFLAC
+# Muat token dari file .env 
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "super_secret_key" 
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "super_secret_key") 
 socketio = SocketIO(app, cors_allowed_origins="*") 
 DOWNLOAD_FOLDER = 'downloads'
 
 tasks = {}
-
-# --- PENINGKATAN PERFORMA 1: Batasi maksimal download bersamaan ---
 executor = ThreadPoolExecutor(max_workers=3) 
 
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
-# --- PENINGKATAN PERFORMA 2: Pindahkan hapus file ke Background Job ---
+# [PENINGKATAN PERFORMA]: Membersihkan memori RAM dari task yang sudah usang
 def hapus_file_lama():
     waktu_sekarang = time.time()
+    task_keys_to_delete = []
     for nama_item in os.listdir(DOWNLOAD_FOLDER):
         path_item = os.path.join(DOWNLOAD_FOLDER, nama_item)
         waktu_modifikasi = os.path.getmtime(path_item)
-        # Hapus file yang lebih lama dari 10 menit (600 detik)
         if waktu_sekarang - waktu_modifikasi > 600: 
             try:
                 if os.path.isfile(path_item): os.remove(path_item)
                 elif os.path.isdir(path_item): shutil.rmtree(path_item)
+                
+                # Ekstrak task_id dari nama file/folder jika memungkinkan
+                if nama_item.startswith("Media_Batch_"):
+                    t_id = nama_item.replace("Media_Batch_", "").replace(".zip", "")
+                    task_keys_to_delete.append(t_id)
+                else:
+                    task_keys_to_delete.append(nama_item)
             except: pass
+            
+    for t_id in task_keys_to_delete:
+        if t_id in tasks:
+            del tasks[t_id]
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=hapus_file_lama, trigger="interval", minutes=5)
 scheduler.start()
-
 atexit.register(lambda: scheduler.shutdown())
 
 def perbaiki_cookies(filepath='cookies.txt'):
@@ -104,15 +114,6 @@ def preview():
     url = data.get('url')
     if not url: return jsonify({'success': False, 'error': 'URL kosong'})
 
-    if 'spotify.com' in url:
-        return jsonify({
-            'success': True, 
-            'title': 'Media Spotify', 
-            'thumbnail': 'https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_Green.png', 
-            'uploader': 'Spotify Audio', 
-            'duration': 'Audio Track / Playlist'
-        })
-
     try:
         ydl_opts = {
             'skip_download': True, 'quiet': True, 'extract_flat': 'in_playlist',
@@ -148,82 +149,88 @@ def preview():
         return jsonify({'success': True, 'title': title, 'thumbnail': thumbnail, 'uploader': uploader, 'duration': duration})
     except Exception as e: return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/cancel/<task_id>', methods=['POST'])
+def cancel_task(task_id):
+    if task_id not in tasks:
+        tasks[task_id] = {}
+    tasks[task_id]['cancelled'] = True
+    return jsonify({"success": True})
+
 def proses_download_background(task_id, urls, format_choice, resolution_choice, audio_quality, is_playlist, video_ext, start_time, end_time):
+    if task_id not in tasks:
+        tasks[task_id] = {}
+    tasks[task_id]['cancelled'] = False
+
     try:
         task_folder = os.path.join(DOWNLOAD_FOLDER, task_id)
         os.makedirs(task_folder, exist_ok=True)
 
-        spotify_urls = [u for u in urls if 'spotify.com' in u]
-        other_urls = [u for u in urls if 'spotify.com' not in u]
+        if urls:
+            def cek_batal(info_dict, *args, **kwargs):
+                if tasks.get(task_id, {}).get('cancelled'):
+                    return "Dihentikan: Pengguna membatalkan unduhan"
+                return None
 
-        # 1. Proses Spotify via modul SpotiFLAC
-        if spotify_urls:
-            socketio.emit('progress', {'task_id': task_id, 'processing_msg': 'Menyiapkan koneksi ke server Hi-Fi...'})
+            state = {'last_time': 0}
             
-            for i, s_url in enumerate(spotify_urls):
-                file_id = f"spotify_track_{i}"
-                file_title = f"Spotify Audio Track {i+1}"
-                
-                socketio.emit('progress', {'task_id': task_id, 'file_id': file_id, 'file_title': file_title, 'progress': '10', 'processing_msg': 'Mencari di Tidal/Qobuz...'})
-                try:
-                    SpotiFLAC(
-                        url=s_url,
-                        output_dir=task_folder,
-                        services=["tidal", "qobuz", "deezer", "amazon"],
-                        filename_format="{artist} - {title}",
-                        use_track_numbers=False,
-                        use_artist_subfolders=False,
-                        use_album_subfolders=False
-                    )
-                    socketio.emit('progress', {'task_id': task_id, 'file_id': file_id, 'file_title': file_title, 'progress': '100', 'processing_msg': 'Berhasil mengunduh FLAC Hi-Res'})
-                except Exception as e:
-                    socketio.emit('progress', {'task_id': task_id, 'file_id': file_id, 'file_title': file_title, 'progress': '0', 'processing_msg': f'Gagal: {str(e)}'})
+            # [PENINGKATAN UI]: Menghapus kode warna ANSI yang mengotori string dari yt-dlp
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
-        # 2. Proses URL Lain (YouTube, IG, TikTok, dll)
-        if other_urls:
             def progress_hook(d):
-                # Ambil info spesifik video
+                if tasks.get(task_id, {}).get('cancelled'):
+                    raise ValueError("Unduhan dihentikan paksa oleh pengguna.")
+
                 info = d.get('info_dict', {})
                 file_title = info.get('title', 'Media Tanpa Judul')
-                file_id = info.get('id', str(hash(d.get('filename', file_title)))) # Buat ID Unik
+                file_id = info.get('id', str(abs(hash(d.get('filename', file_title)))))
                 
                 if d['status'] == 'downloading':
+                    sekarang = time.time()
+                    if sekarang - state['last_time'] < 0.5:
+                        return
+                    state['last_time'] = sekarang
+
                     downloaded = d.get('downloaded_bytes', 0)
                     total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
                     if total > 0:
                         percent = (downloaded / total) * 100
                         percent_str = f"{percent:.1f}"
                     else:
-                        percent_str = d.get('_percent_str', '0.0%')
-                        percent_str = re.sub(r'\x1b\[[0-9;]*m', '', percent_str).replace('%', '').strip()
+                        percent_str = ansi_escape.sub('', d.get('_percent_str', '0.0%')).replace('%', '').strip()
+                        
+                    # Ekstrak data ETA, Speed, dan Size untuk UI baru
+                    speed_str = ansi_escape.sub('', d.get('_speed_str', 'N/A')).strip()
+                    eta_str = ansi_escape.sub('', d.get('_eta_str', 'N/A')).strip()
+                    size_str = ansi_escape.sub('', d.get('_total_bytes_str', 'N/A')).strip()
                         
                     socketio.emit('progress', {
                         'task_id': task_id, 
                         'file_id': file_id, 
                         'file_title': file_title, 
-                        'progress': percent_str,
-                        'processing_msg': 'Mengunduh data...'
+                        'progress': percent_str, 
+                        'processing_msg': 'Mengunduh data...',
+                        'speed': speed_str,
+                        'eta': eta_str,
+                        'size': size_str
                     })
                 elif d['status'] == 'finished':
-                    socketio.emit('progress', {
-                        'task_id': task_id, 
-                        'file_id': file_id, 
-                        'file_title': file_title, 
-                        'progress': '100', 
-                        'processing_msg': 'Menyatukan Audio & Video...'
-                    })
+                    socketio.emit('progress', {'task_id': task_id, 'file_id': file_id, 'file_title': file_title, 'progress': '100', 'processing_msg': 'Menyatukan Audio & Video...'})
 
             ydl_opts = {
-                'outtmpl': os.path.join(task_folder, '%(title)s.%(ext)s'), 'noplaylist': not is_playlist,
-                'ignoreerrors': True, 'progress_hooks': [progress_hook], 'source_address': '0.0.0.0',
-                'remote_components': ['ejs:github']
+                'outtmpl': os.path.join(task_folder, '%(title)s.%(ext)s'), 
+                'noplaylist': not is_playlist,
+                'ignoreerrors': True, 
+                'progress_hooks': [progress_hook], 
+                'match_filter': cek_batal,
+                'source_address': '0.0.0.0',
+                'remote_components': ['ejs:github'],
+                'concurrent_fragment_downloads': 4 
             }
             
             if os.path.exists('cookies.txt'):
                 perbaiki_cookies('cookies.txt')
                 ydl_opts['cookiefile'] = 'cookies.txt'
 
-            # Jika format yang diminta HANYA METADATA
             if format_choice == 'metadata':
                 ydl_opts.update({'skip_download': True, 'writeinfojson': True, 'clean_infojson': False})
             else:
@@ -242,34 +249,33 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
                     if audio_quality == 'webm':
                         ydl_opts.update({'format': 'bestaudio[ext=webm]/bestaudio/best'})
                     else:
-                        ydl_opts.update({
-                            'format': 'bestaudio/best', 
-                            'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': codec}]
-                        })
+                        ydl_opts.update({'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': codec}]})
                         if codec in ['mp3', 'm4a', 'aac', 'opus']: 
                             ydl_opts['postprocessors'][0]['preferredquality'] = quality
                 else: 
                     if video_ext == 'webm': format_string = f'bestvideo[height<={resolution_choice}][ext=webm]+bestaudio[ext=webm]/bestvideo[height<={resolution_choice}]+bestaudio/best'
                     elif video_ext == 'mkv': format_string = f'bestvideo[height<={resolution_choice}]+bestaudio/bestvideo[height<={resolution_choice}]+bestaudio/best'
-                    else: 
-                        format_string = f'bestvideo[height<={resolution_choice}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={resolution_choice}]+bestaudio/best'
+                    else: format_string = f'bestvideo[height<={resolution_choice}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={resolution_choice}]+bestaudio/best'
                         
                     ydl_opts['format'] = format_string
                     
                     if video_ext in ['avi', 'mov']:
                         ydl_opts['merge_output_format'] = 'mkv' 
                         ydl_opts.setdefault('postprocessors', []).append({'key': 'FFmpegVideoConvertor', 'preferedformat': video_ext})
-                    elif video_ext == 'webm' and 'instagram.com' in other_urls[0]: 
+                    elif video_ext == 'webm' and 'instagram.com' in urls[0]: 
                         ydl_opts['merge_output_format'] = 'mp4'
                     else: 
                         ydl_opts['merge_output_format'] = video_ext
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download(other_urls)
+                ydl.download(urls)
 
-        # Proses Pembungkusan (ZIP) jika lebih dari 1 file
+        if tasks.get(task_id, {}).get('cancelled'):
+            raise Exception("Proses dibatalkan oleh pengguna.")
+
         downloaded_files = os.listdir(task_folder)
-        if len(downloaded_files) == 0: raise Exception("Tidak ada file yang berhasil diproses.")
+        if len(downloaded_files) == 0: 
+            raise Exception("Tidak ada file yang berhasil diproses.")
         elif len(downloaded_files) == 1:
             tasks[task_id] = {'filename': os.path.join(task_folder, downloaded_files[0])}
         else:
@@ -294,17 +300,15 @@ def index():
         audio_quality = request.form.get('audio_quality')
         video_ext = request.form.get('video_ext', 'mp4') 
         is_playlist = 'is_playlist' in request.form 
+
         start_time = request.form.get('start_time')
         end_time = request.form.get('end_time')
         
         if not urls:
-            flash('Harap masukkan URL!')
             return render_template('index.html')
 
         task_id = str(uuid.uuid4())
-        
         executor.submit(proses_download_background, task_id, urls, format_choice, resolution_choice, audio_quality, is_playlist, video_ext, start_time, end_time)
-        
         return render_template('index.html', task_id=task_id)
 
     return render_template('index.html')
