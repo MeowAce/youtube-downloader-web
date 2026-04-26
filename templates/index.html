@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer">
 
     <title>Media Downloader Pro</title>
 
@@ -707,6 +708,53 @@
                 </select>
             </div>
 
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label for="custom_filename"
+                    style="display: block; margin-bottom: 8px; font-weight: bold; color: var(--text-main);">
+                    📝 Nama File (Opsional):
+                </label>
+                <input type="text" id="custom_filename" name="custom_filename"
+                    placeholder="Contoh: Bruno Mars (Kosongkan untuk nama asli)"
+                    style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid var(--border-color); background-color: var(--bg-input); color: var(--text-main); font-size: 16px; transition: border-color 0.3s;"
+                    onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border-color)'">
+                <small style="color: var(--text-muted, #888); display: block; margin-top: 5px;">
+                    *Jika mendownload playlist, nomor urut akan ditambahkan otomatis di belakang nama.
+                </small>
+            </div>
+
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label
+                    style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-main); font-weight: bold;">
+                    <input type="checkbox" name="download_subtitles" value="1" style="width: 20px; height: 20px; cursor: pointer;">
+                    💬 Sertakan Subtitle / CC (Jika tersedia)
+                </label>
+                <small style="color: var(--text-muted, #888); display: block; margin-top: 5px; margin-left: 30px;">
+                    *Akan mengunduh file subtitle (Bahasa Indonesia/Inggris) bersamaan dengan video.
+                </small>
+            </div>
+
+            {% if need_pin %}
+            {% if error_msg %}
+            <div
+                style="background-color: #ffebee; color: #c62828; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ef9a9a; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">⚠️</span>
+                <strong>{{ error_msg }}</strong>
+            </div>
+            {% endif %}
+            
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label for="pin" style="display: block; margin-bottom: 8px; font-weight: bold; color: var(--text-main, #444);">
+                    🔑 PIN Akses Server:
+                </label>
+                <input type="password" id="pin" name="pin" required placeholder="Masukkan PIN Rahasia"
+                    style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid var(--border-color); background-color: var(--bg-input); color: var(--text-main); font-size: 16px; transition: border-color 0.3s;"
+                    onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <small style="color: var(--text-muted, #888); display: block; margin-top: 5px;">
+                        *Untuk keperluan demo, silakan gunakan PIN: <strong>5780129436</strong>
+                    </small>
+            </div>
+            {% endif %}
+            
             <button type="submit" class="btn-primary" id="submitBtn"><i class="fa-solid fa-download"></i> Mulai
                 Download</button>
         </form>
@@ -814,33 +862,73 @@
                 typingTimer = setTimeout(() => { fetchPreviewData(urls[0]); }, 800);
             });
 
-            function fetchPreviewData(url) {
-                fetch('/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url }) })
-                    .then(res => res.json())
-                    .then(data => {
-                        skeletonFrame.style.display = 'none';
-                        realFrame.style.display = 'flex';
-                        document.getElementById('previewImage').style.display = 'block';
+            // Fungsi untuk memperbarui isi Select secara dinamis
+                function updateSelectOptions(elementId, optionsArray, labelPrefix, isResolution = false) {
+                    const select = document.getElementById(elementId);
+                    const currentValue = select.value; // Simpan pilihan user jika masih ada di daftar baru
+                    select.innerHTML = ''; // Kosongkan
 
-                        if (data.success) {
-                            document.getElementById('previewTitle').innerText = data.title;
-                            document.getElementById('previewChannel').innerText = data.uploader;
-                            document.getElementById('previewDuration').innerText = data.duration;
-                            if (data.thumbnail) {
-                                if (url.includes('instagram.com')) document.getElementById('previewImage').src = '/proxy_gambar?url=' + encodeURIComponent(data.thumbnail);
-                                else document.getElementById('previewImage').src = data.thumbnail;
-                            } else {
-                                document.getElementById('previewImage').src = "";
-                            }
-                        } else {
-                            // Gunakan SweetAlert Error
-                            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Gagal memuat info video', showConfirmButton: false, timer: 3000 });
-                            previewCard.style.display = 'none';
-                        }
-                    }).catch(() => {
-                        skeletonFrame.style.display = 'none'; previewCard.style.display = 'none';
+                    if (optionsArray.length === 0) {
+                        const opt = document.createElement('option');
+                        opt.value = "";
+                        opt.text = "Tidak tersedia";
+                        select.appendChild(opt);
+                        return;
+                    }
+
+                    optionsArray.forEach(val => {
+                        const opt = document.createElement('option');
+                        opt.value = val;
+                        // Contoh label: "Kualitas: 1080p" atau "Ekstensi: mp4"
+                        opt.text = isResolution ? `${labelPrefix}: ${val}p` : `${labelPrefix}: ${val.toUpperCase()}`;
+                        select.appendChild(opt);
                     });
-            }
+
+                    // Kembalikan ke nilai sebelumnya jika nilai tersebut masih ada di daftar baru
+                    if (Array.from(select.options).some(o => o.value == currentValue)) {
+                        select.value = currentValue;
+                    }
+                }
+
+                // Update fungsi fetchPreviewData yang sudah ada
+                function fetchPreviewData(url) {
+                    fetch('/preview', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: url })
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            skeletonFrame.style.display = 'none';
+                            realFrame.style.display = 'flex';
+
+                            if (data.success) {
+                                // 1. Update Info Dasar
+                                document.getElementById('previewTitle').innerText = data.title || 'Judul Tidak Diketahui';
+                                document.getElementById('previewChannel').innerText = data.uploader || 'Akun Tidak Diketahui';
+                                document.getElementById('previewDuration').innerText = data.duration || '--:--';
+
+                                // 2. Update Thumbnail dengan aman
+                                const imgEl = document.getElementById('previewImage');
+                                if (data.thumbnail) {
+                                    imgEl.style.display = 'block';
+                                    if (url.includes('instagram.com')) {
+                                        imgEl.src = '/proxy_gambar?url=' + encodeURIComponent(data.thumbnail);
+                                    } else {
+                                        imgEl.src = data.thumbnail;
+                                    }
+                                } else {
+                                    imgEl.style.display = 'none'; // Sembunyikan elemen jika memang tidak ada gambar
+                                }
+
+                                // 3. (Jika kamu menggunakan fitur deteksi format/resolusi sebelumnya, biarkan kodenya di bawah sini)
+                                // if (data.formats) { ... }
+                            } else {
+                                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Gagal memuat info', showConfirmButton: false, timer: 3000 });
+                                previewCard.style.display = 'none';
+                            }
+                        });
+                }
 
             document.getElementById('downloadForm').addEventListener('submit', function () {
                 document.getElementById('submitBtn').innerHTML = "<i class='fa-solid fa-circle-notch fa-spin'></i> Memproses...";

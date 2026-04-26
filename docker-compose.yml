@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: media_downloader
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./downloads:/app/downloads  # Sinkronisasi file unduhan ke host
+      - ./.env:/app/.env            # Menggunakan file .env milikmu
+    restart: unless-stopped         # Otomatis nyala ulang jika server mati/restart

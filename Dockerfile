@@ -1,21 +1,27 @@
-# Gunakan OS Linux dengan Python 3.10
+# 1. Gunakan OS Linux ringan yang sudah terinstal Python 3.10
 FROM python:3.10-slim
 
-# Instal FFmpeg (Sangat wajib agar yt-dlp tidak error)
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
-
-# Pindah ke dalam folder aplikasi di server
+# 2. Atur folder kerja di dalam Docker
 WORKDIR /app
 
-# Salin requirements.txt dan instal
+# 3. Instal FFmpeg (Wajib untuk yt-dlp menggabungkan video & audio)
+RUN apt-get update && \
+    apt-get install -y ffmpeg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 4. Salin file requirements dan instal library Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Salin sisa file kita (app.py, folder templates, dll)
+# 5. Salin semua file kodemu (app.py, folder templates, dll) ke dalam Docker
 COPY . .
 
-# Buka akses jaringan
+# 6. Buat folder downloads jika belum ada
+RUN mkdir -p downloads
+
+# 7. Buka port 5000 agar bisa diakses dari luar
 EXPOSE 5000
 
-# Jalankan aplikasi
+# 8. Perintah untuk menjalankan aplikasi saat container menyala
 CMD ["python", "app.py"]

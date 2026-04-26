@@ -1,4 +1,8 @@
-Flask
-flask-socketio
-yt-dlp
-ffmpeg
+Flask==3.0.3
+yt-dlp==2024.4.9
+Flask-SocketIO==5.3.6
+python-dotenv==1.0.1
+APScheduler==3.10.4
+# gevent dan gevent-websocket diperlukan agar SocketIO berjalan stabil di production
+gevent==24.2.1
+gevent-websocket==0.10.1
