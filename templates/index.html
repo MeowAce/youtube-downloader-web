@@ -688,23 +688,16 @@
 
                 <select name="video_ext" id="videoExtSelect">
                     <option value="mp4" selected>Ekstensi: MP4 (Standar)</option>
-                    <option value="mkv">Ekstensi: MKV (4K/8K)</option>
-                    <option value="webm">Ekstensi: WebM</option>
                 </select>
-
+                
                 <select name="resolution" id="resolutionSelect">
-                    <option value="4320">Kualitas: 8K (4320p)</option>
-                    <option value="2160">Kualitas: 4K (2160p)</option>
-                    <option value="1080" selected>Kualitas: Full HD (1080p)</option>
-                    <option value="720">Kualitas: HD (720p)</option>
-                    <option value="480">Kualitas: SD (480p)</option>
+                    <option value="1080" selected>Kualitas: 1080p (Default)</option>
+                    <option value="720">Kualitas: 720p</option>
                 </select>
-
+                
                 <select name="audio_quality" id="audioQualitySelect" style="display: none;">
-                    <option value="mp3_320" selected>Audio: MP3 (320kbps Tinggi)</option>
-                    <option value="mp3_192">Audio: MP3 (192kbps)</option>
-                    <option value="m4a">Audio: M4A (Apple AAC)</option>
-                    <option value="flac">Audio: FLAC (Lossless HD)</option>
+                    <option value="mp3" selected>Audio: MP3</option>
+                    <option value="m4a">Audio: M4A</option>
                 </select>
             </div>
 
@@ -725,11 +718,20 @@
             <div style="margin-bottom: 20px; text-align: left;">
                 <label
                     style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-main); font-weight: bold;">
+                    <input type="checkbox" name="embed_metadata" value="1" style="width: 20px; height: 20px; cursor: pointer;">
+                    <span>Sertakan Metadata & Cover Art (Thumbnail)</span>
+                </label>
+            </div>
+
+
+            <div style="margin-bottom: 20px; text-align: left;">
+                <label
+                    style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-main); font-weight: bold;">
                     <input type="checkbox" name="download_subtitles" value="1" style="width: 20px; height: 20px; cursor: pointer;">
                     💬 Sertakan Subtitle / CC (Jika tersedia)
                 </label>
                 <small style="color: var(--text-muted, #888); display: block; margin-top: 5px; margin-left: 30px;">
-                    *Akan mengunduh file subtitle (Bahasa Indonesia/Inggris) bersamaan dengan video.
+                    *Subtitle akan disematkan ke dalam video jika format mendukung, atau disediakan sebagai file terpisah.
                 </small>
             </div>
 
@@ -865,10 +867,12 @@
             // Fungsi untuk memperbarui isi Select secara dinamis
                 function updateSelectOptions(elementId, optionsArray, labelPrefix, isResolution = false) {
                     const select = document.getElementById(elementId);
-                    const currentValue = select.value; // Simpan pilihan user jika masih ada di daftar baru
-                    select.innerHTML = ''; // Kosongkan
+                    if (!select) return;
 
-                    if (optionsArray.length === 0) {
+                    const currentValue = select.value; // Simpan preferensi user sebelumnya
+                    select.innerHTML = ''; // Bersihkan opsi lama
+
+                    if (!optionsArray || optionsArray.length === 0) {
                         const opt = document.createElement('option');
                         opt.value = "";
                         opt.text = "Tidak tersedia";
@@ -876,21 +880,24 @@
                         return;
                     }
 
-                    optionsArray.forEach(val => {
+                    optionsArray.forEach((val, index) => {
                         const opt = document.createElement('option');
                         opt.value = val;
-                        // Contoh label: "Kualitas: 1080p" atau "Ekstensi: mp4"
-                        opt.text = isResolution ? `${labelPrefix}: ${val}p` : `${labelPrefix}: ${val.toUpperCase()}`;
+                        opt.text = isResolution ? `${labelPrefix}: ${val}p` : `${labelPrefix}: ${val.toString().toUpperCase()}`;
+
+                        // Jadikan opsi pertama (resolusi tertinggi) sebagai default
+                        if (index === 0) opt.selected = true;
+
                         select.appendChild(opt);
                     });
 
-                    // Kembalikan ke nilai sebelumnya jika nilai tersebut masih ada di daftar baru
+                    // Jika preferensi user sebelumnya masih ada di list format baru, kembalikan pilihannya
                     if (Array.from(select.options).some(o => o.value == currentValue)) {
                         select.value = currentValue;
                     }
                 }
 
-                // Update fungsi fetchPreviewData yang sudah ada
+                // Fungsi fetchPreviewData yang disempurnakan
                 function fetchPreviewData(url) {
                     fetch('/preview', {
                         method: 'POST',
@@ -899,33 +906,32 @@
                     })
                         .then(res => res.json())
                         .then(data => {
+                            const skeletonFrame = document.getElementById('skeletonFrame');
+                            const realFrame = document.getElementById('realFrame');
+
                             skeletonFrame.style.display = 'none';
                             realFrame.style.display = 'flex';
 
                             if (data.success) {
-                                // 1. Update Info Dasar
-                                document.getElementById('previewTitle').innerText = data.title || 'Judul Tidak Diketahui';
-                                document.getElementById('previewChannel').innerText = data.uploader || 'Akun Tidak Diketahui';
-                                document.getElementById('previewDuration').innerText = data.duration || '--:--';
+                                document.getElementById('previewTitle').innerText = data.title;
+                                document.getElementById('previewChannel').innerText = data.uploader;
+                                document.getElementById('previewDuration').innerText = data.duration;
 
-                                // 2. Update Thumbnail dengan aman
                                 const imgEl = document.getElementById('previewImage');
                                 if (data.thumbnail) {
+                                    imgEl.src = url.includes('instagram.com') ? '/proxy_gambar?url=' + encodeURIComponent(data.thumbnail) : data.thumbnail;
                                     imgEl.style.display = 'block';
-                                    if (url.includes('instagram.com')) {
-                                        imgEl.src = '/proxy_gambar?url=' + encodeURIComponent(data.thumbnail);
-                                    } else {
-                                        imgEl.src = data.thumbnail;
-                                    }
-                                } else {
-                                    imgEl.style.display = 'none'; // Sembunyikan elemen jika memang tidak ada gambar
                                 }
 
-                                // 3. (Jika kamu menggunakan fitur deteksi format/resolusi sebelumnya, biarkan kodenya di bawah sini)
-                                // if (data.formats) { ... }
+                                // UPDATE RESOLUSI DAN FORMAT SECARA DINAMIS
+                                if (data.formats) {
+                                    updateSelectOptions('resolutionSelect', data.formats.resolutions, 'Kualitas', true);
+                                    updateSelectOptions('videoExtSelect', data.formats.video_ext, 'Ekstensi');
+                                    updateSelectOptions('audioQualitySelect', data.formats.audio_ext, 'Audio');
+                                }
                             } else {
-                                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Gagal memuat info', showConfirmButton: false, timer: 3000 });
-                                previewCard.style.display = 'none';
+                                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: data.error || 'Gagal memuat info', showConfirmButton: false, timer: 3000 });
+                                document.getElementById('previewCard').style.display = 'none';
                             }
                         });
                 }
