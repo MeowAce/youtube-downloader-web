@@ -1,6 +1,6 @@
 {
   "name": "YouTube & Instagram Downloader",
-  "short_name": "YT & IG Downloader",
+  "short_name": "Media Downloader",
   "description": "Unduh Video & Audio Tanpa Batas",
   "start_url": "/",
   "display": "standalone",

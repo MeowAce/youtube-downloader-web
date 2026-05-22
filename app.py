@@ -1,12 +1,12 @@
-from gevent import monkey
-monkey.patch_all()
+import yt_dlp
+import warnings
+
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask, render_template, request, send_file, flash, jsonify, session, Response
 from flask_socketio import SocketIO
-from concurrent.futures import ThreadPoolExecutor
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
-import yt_dlp
 import os
 import time
 import traceback
@@ -20,12 +20,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY") 
-socketio = SocketIO(app, cors_allowed_origins="*") 
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or "rahasia_default"
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading') 
 DOWNLOAD_FOLDER = 'downloads'
 
 tasks = {}
-
 preview_cache = {}
 
 # Fungsi pembersih cache (opsional, untuk mencegah RAM penuh)
@@ -40,7 +40,7 @@ executor = ThreadPoolExecutor(max_workers=3)
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
-# [PENINGKATAN PERFORMA]: Membersihkan memori RAM dari task yang sudah usang
+# Membersihkan memori RAM dari task yang sudah usang
 def hapus_file_lama():
     waktu_sekarang = time.time()
     task_keys_to_delete = []
@@ -52,7 +52,6 @@ def hapus_file_lama():
                 if os.path.isfile(path_item): os.remove(path_item)
                 elif os.path.isdir(path_item): shutil.rmtree(path_item)
                 
-                # Ekstrak task_id dari nama file/folder jika memungkinkan
                 if nama_item.startswith("Media_Batch_"):
                     t_id = nama_item.replace("Media_Batch_", "").replace(".zip", "")
                     task_keys_to_delete.append(t_id)
@@ -150,7 +149,6 @@ def preview():
 
             formats = info.get('formats', [])
             for f in formats:
-                # 1. Deteksi Resolusi & Ekstensi Video
                 if f.get('vcodec') != 'none':
                     h = f.get('height')
                     if h: res_set.add(int(h))
@@ -159,46 +157,15 @@ def preview():
                     if ext in ['mp4', 'webm', 'mkv']: 
                         video_ext_set.add(ext)
                 
-                # 2. Deteksi Ekstensi Audio
                 if f.get('acodec') != 'none':
                     a_ext = f.get('ext')
                     acodec = f.get('acodec', '')
                     
-                    # Jika m4a, tambahkan ke list
                     if a_ext == 'm4a':
                         audio_ext_set.add('m4a')
-                    # Jika formatnya webm atau codec-nya opus, itu adalah format Opus
                     elif a_ext == 'webm' or 'opus' in acodec:
                         audio_ext_set.add('opus')
 
-            # 3. Selalu tambahkan MP4 dan MP3 sebagai format "Pasti Bisa" (Fallback FFmpeg)
-            # Karena meski video aslinya hanya webm/m4a, FFmpeg di background bisa convert ke mp4/mp3
-            final_video_ext = sorted(list(set(['mp4'] + list(video_ext_set))))
-            final_audio_ext = sorted(list(set(['mp3'] + list(audio_ext_set))))
-
-            data = {
-                'success': True,
-                'title': info.get('title'),
-                'uploader': info.get('uploader'),
-                'duration': f"{info.get('duration') // 60}:{info.get('duration') % 60:02d}" if info.get('duration') else "0:00",
-                'thumbnail': info.get('thumbnail'),
-                'formats': {
-                    'resolutions': sorted(list(res_set), reverse=True) if res_set else [1080, 720, 480],
-                    'video_ext': final_video_ext,
-                    'audio_ext': final_audio_ext
-                }
-            }
-
-            # Urutkan resolusi secara descending (tertinggi ke terendah)
-            resolutions = sorted(list(res_set), reverse=True) if res_set else [1080, 720, 480]
-            
-            # Catatan: Kita tetap menyertakan 'mp4' dan 'mp3' sebagai fallback. 
-            # Meskipun video aslinya hanya berformat 'webm' atau 'm4a', FFmpeg di backend 
-            # Anda bisa secara otomatis mengkonversinya ke MP4/MP3 yang lebih familiar untuk user.
-            video_extensions = sorted(list(set(['mp4'] + list(video_ext_set)))) 
-            audio_extensions = sorted(list(set(['mp3', 'm4a'] + list(audio_ext_set))))
-
-            # Jika set kosong, berikan default agar tidak error di UI
             resolutions = sorted(list(res_set), reverse=True) if res_set else [1080, 720, 480]
             video_extensions = sorted(list(video_ext_set)) if video_ext_set else ['mp4']
             audio_extensions = sorted(list(audio_ext_set)) if audio_ext_set else ['mp3', 'm4a']
@@ -206,16 +173,20 @@ def preview():
             title = info.get('title', 'Video Tidak Diketahui')
             duration_sec = info.get('duration', 0)
             
-            # Proteksi durasi (Contoh: Max 2 Jam)
             if duration_sec > 7200:
                 return jsonify({'success': False, 'error': 'Video terlalu panjang (Maks 2 Jam)'})
+
+            # FIX: Nilai float diubah paksa ke int agar format :02d tidak memicu crash
+            formatted_duration = "Live"
+            if duration_sec:
+                formatted_duration = f"{int(duration_sec // 60)}:{int(duration_sec % 60):02d}"
 
             response_data = {
                 'success': True, 
                 'title': title, 
                 'thumbnail': info.get('thumbnail'), 
                 'uploader': info.get('uploader') or info.get('channel'), 
-                'duration': f"{duration_sec // 60}:{duration_sec % 60:02d}" if duration_sec else "Live",
+                'duration': formatted_duration,
                 'formats': {
                     'resolutions': resolutions,
                     'video_ext': video_extensions,
@@ -252,8 +223,6 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
                 return None
 
             state = {'last_time': 0}
-            
-            # [PENINGKATAN UI]: Menghapus kode warna ANSI yang mengotori string dari yt-dlp
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
             def progress_hook(d):
@@ -278,7 +247,6 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
                     else:
                         percent_str = ansi_escape.sub('', d.get('_percent_str', '0.0%')).replace('%', '').strip()
                         
-                    # Ekstrak data ETA, Speed, dan Size untuk UI baru
                     speed_str = ansi_escape.sub('', d.get('_speed_str', 'N/A')).strip()
                     eta_str = ansi_escape.sub('', d.get('_eta_str', 'N/A')).strip()
                     size_str = ansi_escape.sub('', d.get('_total_bytes_str', 'N/A')).strip()
@@ -305,37 +273,36 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
                 'source_address': '0.0.0.0',
                 'remote_components': ['ejs:github'],
                 'concurrent_fragment_downloads': 4,
-                'sleep_requests': 2,  # Beri jeda 2 detik agar tidak dianggap spam
+                'sleep_requests': 2,
                 'extractor_args': {
                     'youtube': {
-                    'client': ['android', 'web']
+                        'client': ['android', 'web']
                     }
                 },
-                'ignoreerrors': True,
-                'no_warnings': True
+                'no_warnings': True,
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
             }
             
+            if os.path.exists('cookies.txt'):
+                perbaiki_cookies('cookies.txt')
+                ydl_opts['cookiefile'] = 'cookies.txt'
+            
         if download_subtitles:
-            ydl_opts['writesubtitles'] = True        # Mengunduh subtitle manual dari uploader
-            ydl_opts['writeautomaticsub'] = True     # Mengunduh auto-generated subtitle dari YouTube jika manual tidak ada
-            ydl_opts['subtitleslangs'] = ['id', 'en'] # Prioritaskan Bahasa Indonesia dan Inggris
-            ydl_opts['subtitlesformat'] = 'best'     # Pilih format terbaik (biasanya vtt atau srt)
+            ydl_opts['writesubtitles'] = True        
+            ydl_opts['writeautomaticsub'] = True     
+            ydl_opts['subtitleslangs'] = ['id', 'en'] 
+            ydl_opts['subtitlesformat'] = 'best'     
 
         if custom_filename:
-            # Bersihkan nama dari karakter yang dilarang oleh Windows/Linux
             safe_name = re.sub(r'[\\/*?:"<>|]', "", custom_filename)
-            
             if is_playlist:
                 ydl_opts['outtmpl'] = os.path.join(task_folder, f'{safe_name}_%(playlist_index)s.%(ext)s')
             else:
                 ydl_opts['outtmpl'] = os.path.join(task_folder, f'{safe_name}.%(ext)s')
         else:
-            # Default jika input dikosongkan (Gunakan judul asli)
             ydl_opts['outtmpl'] = os.path.join(task_folder, '%(title)s.%(ext)s')
-        
-        if os.path.exists('cookies.txt'):
-            perbaiki_cookies('cookies.txt')
-            ydl_opts['cookiefile'] = 'cookies.txt'
 
         if format_choice == 'metadata':
             ydl_opts.update({'skip_download': True, 'writeinfojson': True, 'clean_infojson': False})
@@ -346,7 +313,6 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
                 ydl_opts['download_ranges'] = lambda info_dict, ydl: [{'start_time': mulai_sec, 'end_time': selesai_sec}]
                 ydl_opts['force_keyframes_at_cuts'] = True
 
-            # GABUNGAN LOGIKA FORMAT YANG BENAR DAN RAPI
             if format_choice == 'audio':
                 codec = 'mp3'
                 quality = '192'
@@ -360,13 +326,11 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
                     if codec in ['mp3', 'm4a', 'aac', 'opus']: 
                         ydl_opts['postprocessors'][0]['preferredquality'] = quality
             else: 
-                # Untuk Video
                 if video_ext == 'webm': 
                     format_string = f'bestvideo[height<={resolution_choice}][ext=webm]+bestaudio[ext=webm]/bestvideo[height<={resolution_choice}]+bestaudio/best'
                 elif video_ext == 'mkv': 
                     format_string = f'bestvideo[height<={resolution_choice}]+bestaudio/bestvideo[height<={resolution_choice}]+bestaudio/best'
                 else: 
-                    # Default: MP4
                     format_string = f'bestvideo[height<={resolution_choice}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={resolution_choice}]+bestaudio/best'
                     
                 ydl_opts['format'] = format_string
@@ -382,24 +346,17 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
         if 'postprocessors' not in ydl_opts:
             ydl_opts['postprocessors'] = []
 
-        # 2. TAMBAHKAN LOGIKA METADATA DI SINI (Sebelum eksekusi with yt_dlp...)
         if embed_metadata:
-            # Suruh yt-dlp download thumbnail-nya juga
             ydl_opts['writethumbnail'] = True 
-            
-            # Tambahkan metadata video/lagu (Judul, uploader, dll) ke dalam file
             ydl_opts['postprocessors'].append({
                 'key': 'FFmpegMetadata',
                 'add_metadata': True,
             })
-            
-            # Tanamkan thumbnail sebagai Cover Art (khususnya untuk mp3/m4a/mp4/mkv)
             ydl_opts['postprocessors'].append({
                 'key': 'EmbedThumbnail',
                 'already_have_thumbnail': False,
             })
 
-        # Mengeksekusi download setelah semua opsi diatur dengan benar
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download(urls)
             
@@ -432,20 +389,14 @@ def proses_download_background(task_id, urls, format_choice, resolution_choice, 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        
-        # --- LOGIKA SESSION PIN BARU ---
-        # Cek apakah user BELUM terautentikasi di session ini
         if not session.get('is_authenticated'):
             pin_input = request.form.get('pin', '')
             pin_server = os.getenv("APP_PIN", "1234")
             
             if pin_input != pin_server:
-                # Jika salah, kembalikan ke halaman awal dengan status need_pin=True
                 return render_template('index.html', error_msg="Akses Ditolak: PIN Server Salah!", need_pin=True)
             else:
-                # Jika PIN benar, catat di memori browser (session)
                 session['is_authenticated'] = True
-        # -------------------------------
     
         urls_raw = request.form.get('url', '')
         urls = [u.strip() for u in urls_raw.replace(',', '\n').split('\n') if u.strip()]
@@ -460,8 +411,6 @@ def index():
         start_time = request.form.get('start_time')
         end_time = request.form.get('end_time')
         download_subtitles = request.form.get('download_subtitles') == '1'
-        
-        # 1. TANGKAP INPUT CHECKBOX METADATA BARU
         embed_metadata = request.form.get('embed_metadata') == '1'
         
         if not urls:
@@ -469,7 +418,6 @@ def index():
 
         task_id = str(uuid.uuid4())
         
-        # 2. TAMBAHKAN 'embed_metadata' KE PARAMETER executor.submit
         executor.submit(
             proses_download_background, task_id, urls, format_choice, 
             resolution_choice, audio_quality, is_playlist, video_ext, 
