@@ -730,9 +730,6 @@
                     <input type="checkbox" name="download_subtitles" value="1" style="width: 20px; height: 20px; cursor: pointer;">
                     💬 Sertakan Subtitle / CC (Jika tersedia)
                 </label>
-                <small style="color: var(--text-muted, #888); display: block; margin-top: 5px; margin-left: 30px;">
-                    *Subtitle akan disematkan ke dalam video jika format mendukung, atau disediakan sebagai file terpisah.
-                </small>
             </div>
 
             {% if need_pin %}
@@ -838,6 +835,19 @@
                 clearTimeout(typingTimer);
                 const rawUrl = urlInput.value.trim();
 
+                if (rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be')) {
+                    try {
+                        let urlObj = new URL(rawUrl);
+                        // Jika terdeteksi playlist Radio (RD...), hapus parameternya
+                        if (urlObj.searchParams.get('list') && urlObj.searchParams.get('list').startsWith('RD')) {
+                            urlObj.searchParams.delete('list');
+                        }
+                        urlObj.searchParams.delete('start_radio');
+                        rawUrl = urlObj.toString();
+                        urlInput.value = rawUrl; // Perbarui inputan form ke URL yang sudah bersih
+                    } catch (e) { }
+                }
+
                 if (rawUrl.length > 0) clearBtn.style.display = 'flex';
                 else clearBtn.style.display = 'none';
 
@@ -933,6 +943,10 @@
                                 Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: data.error || 'Gagal memuat info', showConfirmButton: false, timer: 3000 });
                                 document.getElementById('previewCard').style.display = 'none';
                             }
+                        }).catch(err => {
+                            document.getElementById('skeletonFrame').style.display = 'none';
+                            document.getElementById('previewCard').style.display = 'none';
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Server sibuk/Timeout saat mengambil data', showConfirmButton: false, timer: 4000 });
                         });
                 }
 
@@ -940,6 +954,19 @@
                 document.getElementById('submitBtn').innerHTML = "<i class='fa-solid fa-circle-notch fa-spin'></i> Memproses...";
                 document.getElementById('submitBtn').disabled = true;
             });
+
+            const urlParams = new URLSearchParams(window.location.search);
+                const urlParam = urlParams.get('url');
+
+                if (urlParam) {
+                    urlInput.value = decodeURIComponent(urlParam);
+                    urlInput.dispatchEvent(new Event('input'));
+                }
+
+                document.getElementById('downloadForm').addEventListener('submit', function () {
+                    document.getElementById('submitBtn').innerHTML = "<i class='fa-solid fa-circle-notch fa-spin'></i> Memproses...";
+                    document.getElementById('submitBtn').disabled = true;
+                });
         </script>
         {% endif %}
     </div>

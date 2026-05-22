@@ -134,6 +134,7 @@ def preview():
             'skip_download': True, 
             'quiet': True,
             'no_warnings': True,
+            'noplaylist': True,
         }
         
         if os.path.exists('cookies.txt'):
